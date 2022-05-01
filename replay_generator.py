@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-edtion = 'alpha 1.10.0'
+edtion = 'version 1.0.1'
 
 # 外部参数输入
 
