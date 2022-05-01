@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-edtion = 'version 1.0.0'
+edtion = 'version 1.0.1'
 
 import tkinter as tk
 from tkinter import ttk
@@ -13,13 +13,14 @@ import webbrowser
 import os
 import sys
 import re
+import pickle
 
 # preview 的类 定义
 label_pos_show_text = ImageFont.truetype('./media/SourceHanSerifSC-Heavy.otf', 30)
-RE_mediadef_args = re.compile('(fontfile|fontsize|color|line_limit|filepath|Main_Text|Header_Text|pos|mt_pos|ht_pos|align|line_distance|tick|loop|volume|edge_color)?\ {0,4}=?\ {0,4}([^,()]+|\([\d,\ ]+\))')
+RE_mediadef_args = re.compile('(fontfile|fontsize|color|line_limit|filepath|Main_Text|Header_Text|pos|mt_pos|ht_pos|align|line_distance|tick|loop|volume|edge_color)?\ {0,4}=?\ {0,4}(Text\(\)|[^,()]+|\([\d,\ ]+\))')
 RE_parse_mediadef = re.compile('(\w+)[=\ ]+(Text|StrokeText|Bubble|Animation|Background|BGM|Audio)(\(.+\))')
 RE_vaildname = re.compile('^\w+$')
-occupied_variable_name = open('./media/occupied_variable_name.list','r',encoding='utf8').read().split('\n')
+occupied_variable_name = open('./media/occupied_variable_name.list','r',encoding='utf8').read().split('\n') # 已经被系统占用的变量名
 
 # global image_canvas
 class Text:
@@ -31,7 +32,7 @@ class Text:
     def draw(self,lenth=-1):
         if lenth ==-1:
             lenth = self.line_limit
-        test_canvas = Image.new(mode='RGBA',size=(self.size*self.line_limit,self.size*2),color=(0,0,0,0))
+        test_canvas = Image.new(mode='RGBA',size=(self.size*int(self.line_limit*1.5),self.size*2),color=(0,0,0,0))#高度贪婪2x,宽度贪婪1.5x
         test_draw = ImageDraw.Draw(test_canvas)
         test_draw.text((0,0), ('测试文本'*50)[0:lenth], font = self.text_render,fill = self.color)
         p1,p2,p3,p4 = test_canvas.getbbox()
@@ -51,7 +52,7 @@ class StrokeText(Text):
     def draw(self,lenth=-1):
         if lenth ==-1:
             lenth = self.line_limit
-        test_canvas = Image.new(mode='RGBA',size=(self.size*self.line_limit+2,self.size*2),color=(0,0,0,0))
+        test_canvas = Image.new(mode='RGBA',size=(self.size*int(self.line_limit*1.5),self.size*2),color=(0,0,0,0))#高度贪婪2x,宽度贪婪1.5x
         test_draw = ImageDraw.Draw(test_canvas)
         for pos in [(0,0),(0,1),(0,2),(1,0),(1,2),(2,0),(2,1),(2,2)]:
             test_draw.text(pos, ('测试文本'*50)[0:lenth], font = self.text_render,fill = self.edge_color)
@@ -168,7 +169,7 @@ def open_PosSelect(father,bgfigure='',postype='green',current_pos=''):
         elif event.type=='4': # tk.EventType.ButtonPress
             try: # 获取鼠标点击位置
                 p_x,p_y = 2*event.x,2*event.y
-            except:
+            except Exception:
                 pass # 则不变
         else:
             pass
@@ -196,7 +197,7 @@ def open_PosSelect(father,bgfigure='',postype='green',current_pos=''):
             cursor_figure = Image.open(bgfigure)
             if cursor_figure.mode != 'RGBA': # 如果没有alpha通道
                 cursor_figure.putalpha(255)
-        except:
+        except Exception:
             cursor_figure = Image.new(mode='RGBA',size=(1,1),color=(0,0,0,0))
     elif postype=='blue': # mtpos htpos
         try:
@@ -237,13 +238,13 @@ def open_PosSelect(father,bgfigure='',postype='green',current_pos=''):
     try:
         p_x,p_y = re.findall('\(([\ \d]+),([\ \d]+)\)',current_pos)[0]
         p_x,p_y= int(p_x),int(p_y)
-    except:
+    except Exception:
         p_x,p_y= 0,0
     get_click()
     sele_preview.mainloop()
     return posselect_return
 # 媒体定义窗
-def open_Media_def_window(father,i_name='None',i_type='None',i_args='None'):
+def open_Media_def_window(father,i_name='',i_type='',i_args=''):
     obj_return_value = False
     def show_selected_options(event):
         nonlocal type_display
@@ -257,10 +258,13 @@ def open_Media_def_window(father,i_name='None',i_type='None',i_args='None'):
     def comfirm_obj():
         nonlocal obj_return_value
         if '' in [o_name.get(),o_type.get()]:
+            # 如果名字和类型有缺省
             messagebox.showerror(title='错误',message='缺少必要的参数！')
-        elif o_name.get() in occupied_variable_name:
+        elif (o_name.get()!=i_name)&((o_name.get() in occupied_variable_name)|(o_name.get() in used_variable_name)):
+            # 如果名字发生了改变，且新名字在已经占用（用户或系统）的名字里面
             messagebox.showerror(title='错误',message='已被占用的变量名！') #############改这里！
         elif (len(re.findall('^\w+$',o_name.get()))==0) | (o_name.get()[0].isdigit()): # 全字符是\w，且首字符不是数字
+            # 如果新名字是非法的变量名
             messagebox.showerror(title='错误',message='非法的变量名！') 
         else:
             get_args = {
@@ -304,14 +308,8 @@ def open_Media_def_window(father,i_name='None',i_type='None',i_args='None'):
     o_name = tk.StringVar(Objdef_windows)
     o_type = tk.StringVar(Objdef_windows)
 
-    if i_name == 'None':
-        o_name.set('')
-    else:
-        o_name.set(i_name)
-    if i_type == 'None':
-        o_type.set('')
-    else:
-        o_type.set(i_type)
+    o_name.set(i_name) # 默认是''
+    o_type.set(i_type) # 默认是''
 
     arg_tplt = {
         'Text':"(fontfile='{fontfile}',fontsize={fontsize},color={color},line_limit={line_limit})",
@@ -387,7 +385,7 @@ def open_Media_def_window(father,i_name='None',i_type='None',i_args='None'):
                              'BGM':['filepath','volume','loop']}
 
     #初始状态 空白或者选中
-    if i_type == 'None':
+    if i_type == '':
         Empty_frame.place(x=10,y=40,width=300,height=270)
         type_display = Empty_frame
     else:
@@ -509,21 +507,49 @@ def open_Media_def_window(father,i_name='None',i_type='None',i_args='None'):
 def open_Edit_windows(father,Edit_filepath='',fig_W=960,fig_H=540):
     global image_canvas # 预览的画布
     global available_Text # 所有的可用文本名
+    global used_variable_name # 已经被用户占用的命名
     selected_name,selected_type,selected_args = 'None','None','None'
     selected = 0
     edit_return_value = False
-    available_Text = ['None']
+    available_Text = ['None','Text()']
+    used_variable_name = []
 
     def new_obj(): # 新建
-        Edit_windows.attributes('-disabled',True)
+        try:# 非win系统，可能没有disable
+            Edit_windows.attributes('-disabled',True)
+        except Exception:
+            pass
         new_obj = open_Media_def_window(father=Edit_windows)
-        Edit_windows.attributes('-disabled',False)
+        try:
+            Edit_windows.attributes('-disabled',False)
+        except Exception:
+            pass
         Edit_windows.lift()
         Edit_windows.focus_force()
         if new_obj:
-            mediainfo.insert('','end',values =new_obj)
+            used_variable_name.append(new_obj[0]) # 新建的媒体名
             if new_obj[1] in ['Text','StrokeText']: # 如果新建了文本
+                mediainfo.insert('',0,values =new_obj) # 则插入在最上层
                 available_Text.append(new_obj[0])
+            else:
+                mediainfo.insert('','end',values =new_obj) # 否则插入在最后
+    def copy_obj(): # 复制
+        if selected == 0:
+            pass
+        else:
+            i = 1
+            while True:
+                new_name = selected_name+'_cp'+str(i)
+                if (new_name in used_variable_name)|(new_name in occupied_variable_name):
+                    i = i + 1
+                else:
+                    break
+            used_variable_name.append(new_name) # 新建的媒体名
+            if selected_type in ['Text','StrokeText']: # 如果新建了文本
+                available_Text.append(new_name)
+                mediainfo.insert('',0,values =(new_name,selected_type,selected_args)) # 插入到最前面
+            else:
+                mediainfo.insert('','end',values =(new_name,selected_type,selected_args)) # 否则插入到最后面
     def preview_obj(): # 预览
         global image_canvas
         nonlocal show_canvas # 必须是全局变量，否则在函数后就被回收了，不再显示
@@ -551,12 +577,20 @@ def open_Edit_windows(father,Edit_filepath='',fig_W=960,fig_H=540):
         if selected == 0:
             pass
         else:
-            Edit_windows.attributes('-disabled',True)
+            try:
+                Edit_windows.attributes('-disabled',True)
+            except Exception:
+                pass
             new_obj = open_Media_def_window(Edit_windows,selected_name,selected_type,selected_args)
-            Edit_windows.attributes('-disabled',False)
+            try:
+                Edit_windows.attributes('-disabled',False)
+            except Exception:
+                pass
             Edit_windows.lift()
             Edit_windows.focus_force()
             if new_obj:
+                used_variable_name.remove(selected_name) # 原来的媒体名
+                used_variable_name.append(new_obj[0]) # 新建的媒体名
                 if selected_type in ['Text','StrokeText']: # 如果编辑的对象是文本
                     available_Text.remove(selected_name)
                     available_Text.append(new_obj[0])
@@ -568,6 +602,7 @@ def open_Edit_windows(father,Edit_filepath='',fig_W=960,fig_H=540):
             pass
         else:
             mediainfo.delete(selected)
+            used_variable_name.remove(selected_name)
             if selected_type in ['Text','StrokeText']: # 如果删除了文本
                 available_Text.remove(selected_name)
             selected = 0
@@ -604,7 +639,7 @@ def open_Edit_windows(father,Edit_filepath='',fig_W=960,fig_H=540):
             selected = mediainfo.selection()
             selected_name,selected_type,selected_args = mediainfo.item(selected, "values")
             #print(selected_name,selected_type,selected_args)
-        except:
+        except Exception:
             pass
 
     window_W , window_H = fig_W//2+40,fig_H//2+440
@@ -646,15 +681,16 @@ def open_Edit_windows(father,Edit_filepath='',fig_W=960,fig_H=540):
 
     # 按键
 
-    button_w = (fig_W//2-20)//8
-    button_x = lambda x:10+(fig_W//2-20-button_w)//5*x
+    button_w = (fig_W//2-20)//8 # 这数字8 应该等于按键的 数量+1
+    button_x = lambda x:10+(fig_W//2-20-button_w)//6*x # 这个数字6 应该等于按键的 数量-1
 
     ttk.Button(mediainfo_frame,text='预览',command=preview_obj).place(x=button_x(0),y=320,width=button_w,height=40)
     ttk.Button(mediainfo_frame,text='新建',command=new_obj).place(x=button_x(1),y=320,width=button_w,height=40)
-    ttk.Button(mediainfo_frame,text='编辑',command=edit_obj).place(x=button_x(2),y=320,width=button_w,height=40)
-    ttk.Button(mediainfo_frame,text='删除',command=del_obj).place(x=button_x(3),y=320,width=button_w,height=40)
-    ttk.Button(mediainfo_frame,text='保存',command=lambda:finish(False)).place(x=button_x(4),y=320,width=button_w,height=40)
-    ttk.Button(mediainfo_frame,text='另存',command=lambda:finish(True)).place(x=button_x(5),y=320,width=button_w,height=40)
+    ttk.Button(mediainfo_frame,text='复制',command=copy_obj).place(x=button_x(2),y=320,width=button_w,height=40)    
+    ttk.Button(mediainfo_frame,text='编辑',command=edit_obj).place(x=button_x(3),y=320,width=button_w,height=40)
+    ttk.Button(mediainfo_frame,text='删除',command=del_obj).place(x=button_x(4),y=320,width=button_w,height=40)
+    ttk.Button(mediainfo_frame,text='保存',command=lambda:finish(False)).place(x=button_x(5),y=320,width=button_w,height=40)
+    ttk.Button(mediainfo_frame,text='另存',command=lambda:finish(True)).place(x=button_x(6),y=320,width=button_w,height=40)
 
     # 预览图
     image_canvas = Image.open('./media/canvas.png').crop((0,0,fig_W,fig_H))
@@ -674,6 +710,7 @@ def open_Edit_windows(father,Edit_filepath='',fig_W=960,fig_H=540):
                 parseline = RE_parse_mediadef.findall(line)
                 if len(parseline) == 1:
                     mediainfo.insert('','end',values = parseline[0])
+                    used_variable_name.append(parseline[0][0])
                     if parseline[0][1] in ['Text','StrokeText']:
                         available_Text.append(parseline[0][0])
                 else:
@@ -709,7 +746,7 @@ def choose_color(text_obj):
         R,G,B = get_color[0]
         A = 255
         text_obj.set('({0},{1},{2},{3})'.format(int(R),int(G),int(B),int(A)))
-    except:
+    except Exception:
         text_obj.set('')
     
 # 主界面的函数
@@ -724,14 +761,20 @@ def open_Main_windows():
         Edit_filepath=media_define.get()
         fig_W = project_W.get()
         fig_H = project_H.get()
-        Main_windows.attributes('-disabled',True)
+        try:
+            Main_windows.attributes('-disabled',True)
+        except Exception:
+            pass
         if os.path.isfile(Edit_filepath): # alpha 1.8.5 非法路径
             return_from_Edit = open_Edit_windows(Main_windows,Edit_filepath,fig_W,fig_H)
         else:
             new_or_edit.config(text='新建')
             media_define.set('')
             return_from_Edit = open_Edit_windows(Main_windows,'',fig_W,fig_H)
-        Main_windows.attributes('-disabled',False)
+        try:
+            Main_windows.attributes('-disabled',False)
+        except Exception:
+            pass
         Main_windows.lift()
         Main_windows.focus_force()
         if os.path.isfile(return_from_Edit):
@@ -746,7 +789,62 @@ def open_Main_windows():
                 new_or_edit.config(text='编辑')
             else:
                 new_or_edit.config(text='新建')
-    def run_command():
+    def load_au_file(): # 载入多个音频文件
+        getnames = filedialog.askopenfilenames(filetypes=[('mp3文件','.mp3')])
+        for index,filepath in enumerate(getnames):
+            original_info.insert('','end',values =(index,filepath))
+    def clear_au_file(): # 清空所有音频文件
+        for item in original_info.get_children():
+            original_info.delete(item)
+        for item in convert_info.get_children():
+            convert_info.delete(item)
+    def run_convert(target):
+        # 检查输出路径
+        if output_path.get() == '':
+            messagebox.showerror(title='错误',message='缺少输出路径，去主程序界面填写！')
+            return -1
+        else:
+            opath = output_path.get()+'/'
+        # 检查ffmpeg
+        if os.path.isfile('./ffmpeg.exe'):
+            ffmpeg_exec = 'ffmpeg.exe'
+        else:
+            ffmpeg_exec = 'ffmpeg'
+        # 确定格式
+        if target == 'wav':
+            command = ffmpeg_exec+" -i {ifile} -f wav {ofile} -loglevel quiet"
+        elif target == 'ogg':
+            command = ffmpeg_exec+" -i {ifile} -acodec libvorbis -ab 128k {ofile} -loglevel quiet"
+        else:
+            return -1
+        # 开始载入文件
+        for item in original_info.get_children():
+            index,filepath = original_info.item(item,"values")
+            # 获取文件名
+            try:
+                filename = filepath.split('/')[-1][0:-3]
+            except IndexError:
+                messagebox.showerror(title='错误',message='出现了文件名称异常！'+filename)
+                return -1
+            # 检查文件路径
+            if ' ' in filepath:
+                filepath = '"'+filepath+'"'
+            # 组装命令
+            command_this = command.format(ifile = filepath, ofile = '"'+opath+filename+target+'"')
+            # 执行命令
+            try:
+                print('[32m'+command_this+'[0m')
+                exit_status = os.system(command_this)
+                if exit_status != 0:
+                    raise OSError('Major error occurred in ffmpeg!')
+                else:
+                    print('[convert_format]: '+opath + filename + target+' :Done!')
+                    convert_info.insert('','end',values =(index,opath+filename+target))
+            except Exception:
+                messagebox.showwarning(title='警告',message='似乎有啥不对劲的事情发生了，检视控制台输出获取详细信息！')
+                return -1
+        messagebox.showinfo(title='完毕',message='格式格式转换完毕，输出文件在:'+opath)
+    def run_command_main():
         optional = {1:'--OutputPath {of} ',2:'--ExportXML ',3:'--ExportVideo --Quality {ql} ',4:'--SynthesisAnyway --AccessKey {AK} --AccessKeySecret {AS} --Appkey {AP} ',5:'--FixScreenZoom '}
         command = python3 + ' ./replay_generator.py --LogFile {lg} --MediaObjDefine {md} --CharacterTable {ct} '
         command = command + '--FramePerSecond {fps} --Width {wd} --Height {he} --Zorder {zd} '
@@ -768,9 +866,11 @@ def open_Main_windows():
                                      wd=project_W.get(),he=project_H.get(),zd=project_Z.get())
             try:
                 print('[32m'+command+'[0m')
-                os.system(command)
-            except:
-                messagebox.showwarning(title='警告',message='似乎有啥不对劲的事情发生了！')
+                exit_status = os.system(command)
+                if exit_status != 0:
+                    raise OSError('Major error occurred in replay_generator!')
+            except Exception:
+                messagebox.showwarning(title='警告',message='似乎有啥不对劲的事情发生了，检视控制台输出获取详细信息！')
     def run_command_synth():
         command = python3 +' ./speech_synthesizer.py --LogFile {lg} --MediaObjDefine {md} --CharacterTable {ct} --OutputPath {of} --AccessKey {AK} --AccessKeySecret {AS} --Appkey {AP}'
         if '' in [stdin_logfile.get(),characor_table.get(),media_define.get(),output_path.get(),AccessKey.get(),AccessKeySecret.get(),Appkey.get()]:
@@ -781,10 +881,12 @@ def open_Main_windows():
                                      AK = AccessKey.get(), AS= AccessKeySecret.get(),AP=Appkey.get())
             try:
                 print('[32m'+command+'[0m')
-                os.system(command)
-                messagebox.showinfo(title='完毕',message='语音合成程序执行完毕，检视控制台输出获取详细信息！')
-            except:
-                messagebox.showwarning(title='警告',message='似乎有啥不对劲的事情发生了！')
+                exit_status = os.system(command)
+                if exit_status != 0:
+                    raise OSError('Major error occurred in speech_synthesizer!')
+                messagebox.showinfo(title='完毕',message='语音合成程序执行完毕！')
+            except Exception:
+                messagebox.showwarning(title='警告',message='似乎有啥不对劲的事情发生了，检视控制台输出获取详细信息！')
     def run_command_xml():
         command = python3 + ' ./export_xml.py --TimeLine {tm} --MediaObjDefine {md} --OutputPath {of} --FramePerSecond {fps} --Width {wd} --Height {he} --Zorder {zd}'
         if '' in [timeline_file.get(),media_define.get(),output_path.get(),
@@ -797,10 +899,12 @@ def open_Main_windows():
                                      he = project_H.get(), zd = project_Z.get())
             try:
                 print('[32m'+command+'[0m')
-                os.system(command)
-                messagebox.showinfo(title='完毕',message='导出XML程序执行完毕，检视控制台输出获取详细信息！')
-            except:
-                messagebox.showwarning(title='警告',message='似乎有啥不对劲的事情发生了！')
+                exit_status = os.system(command)
+                if exit_status != 0:
+                    raise OSError('Major error occurred in export_xml!')
+                messagebox.showinfo(title='完毕',message='导出XML程序执行完毕！')
+            except Exception:
+                messagebox.showwarning(title='警告',message='似乎有啥不对劲的事情发生了，检视控制台输出获取详细信息！')
     def run_command_mp4():
         command = python3 + ' ./export_video.py --TimeLine {tm} --MediaObjDefine {md} --OutputPath {of} --FramePerSecond {fps} --Width {wd} --Height {he} --Zorder {zd} --Quality {ql}'
         if '' in [timeline_file.get(),media_define.get(),output_path.get(),
@@ -813,10 +917,12 @@ def open_Main_windows():
                                      he = project_H.get(), zd = project_Z.get(), ql = project_Q.get())
             try:
                 print('[32m'+command+'[0m')
-                os.system(command)
-                messagebox.showinfo(title='完毕',message='导出视频程序执行完毕，检视控制台输出获取详细信息！')
-            except:
-                messagebox.showwarning(title='警告',message='似乎有啥不对劲的事情发生了！')
+                exit_status = os.system(command)
+                if exit_status != 0:
+                    raise OSError('Major error occurred in export_video!')
+                messagebox.showinfo(title='完毕',message='导出视频程序执行完毕！')
+            except Exception:
+                messagebox.showwarning(title='警告',message='似乎有啥不对劲的事情发生了，检视控制台输出获取详细信息！')
     def highlight(target):
         if target == exportmp4:
             if target.get() == 1:
@@ -847,9 +953,32 @@ def open_Main_windows():
                     import ctypes
                     ctypes.windll.user32.SetProcessDPIAware() #修复错误的缩放，尤其是在移动设备。
                     Main_windows.update()
-                except:
+                except Exception:
                     messagebox.showwarning(title='警告',message='该选项在当前系统下不可用！')
                     target.set(0)
+    def close_window():
+        # 保存当前参数
+        try:
+            o_config = open('./media/save_config','wb')
+            if save_config.get() == 1: # 以一个字典的形式把设置保存下来
+                pickle.dump({
+                    'stdin_logfile':stdin_logfile.get(),'characor_table':characor_table.get(),
+                    'media_define':media_define.get(),'output_path':output_path.get(),
+                    'timeline_file':timeline_file.get(),'project_W':project_W.get(),
+                    'project_H':project_H.get(),'project_F':project_F.get(),
+                    'project_Z':project_Z.get(),'project_Q':project_Q.get(),
+                    'AccessKey':AccessKey.get(),'Appkey':Appkey.get(),'AccessKeySecret':AccessKeySecret.get(),
+                    'synthanyway':synthanyway.get(),'exportprxml':exportprxml.get(),
+                    'exportmp4':exportmp4.get(),'fixscrzoom':fixscrzoom.get(),'save_config':save_config.get()
+                },o_config) 
+            else: # 如果选择不保存，则抹除保存的参数
+                pickle.dump({'save_config':save_config.get()},o_config)
+            o_config.close()
+        except Exception:
+            messagebox.showwarning(title='警告',message='保存设置内容失败!')
+        finally: # 关闭主窗口
+            Main_windows.destroy()
+            Main_windows.quit()
 
     # 初始化
     Main_windows = tk.Tk()
@@ -857,13 +986,14 @@ def open_Main_windows():
     Main_windows.geometry("640x550")
     Main_windows.iconbitmap('./media/icon.ico')
     Main_windows.config(background ='#e0e0e0')
+    Main_windows.protocol('WM_DELETE_WINDOW',close_window)
     Main_windows.title('回声工坊 ' + edtion)
 
     # 大号字体
     try:
-        big_text = font.Font(font="微软雅黑",size=25)
-    except:
-        big_text = font.Font(size=25)
+        big_text = font.Font(font=("微软雅黑",12))
+    except Exception:
+        big_text = font.Font(font=("System",12))
 
     # 选中的sheet
     tab = tk.IntVar(Main_windows)
@@ -880,43 +1010,58 @@ def open_Main_windows():
     project_F = tk.IntVar(Main_windows)
     project_Z = tk.StringVar(Main_windows)
     project_Q = tk.IntVar(Main_windows)
-    project_W.set(1920)
-    project_H.set(1080)
-    project_F.set(30)
-    project_Z.set('BG3,BG2,BG1,Am3,Am2,Am1,Bb')
-    project_Q.set(24)
     # 语音合成的key
     AccessKey = tk.StringVar(Main_windows)
     Appkey = tk.StringVar(Main_windows)
     AccessKeySecret = tk.StringVar(Main_windows)
-    AccessKey.set('Your_AccessKey')
-    AccessKeySecret.set('Your_AccessKey_Secret')
-    Appkey.set('Your_Appkey')
     # flag们
     synthanyway = tk.IntVar(Main_windows)
     exportprxml = tk.IntVar(Main_windows)
     exportmp4 = tk.IntVar(Main_windows)
     fixscrzoom = tk.IntVar(Main_windows)
+    save_config = tk.IntVar(Main_windows)
+    # 载入保存的参数
+    try: 
+        i_config = open('./media/save_config','rb')
+        configs = pickle.load(i_config)
+        i_config.close()
+        if configs['save_config'] == 0: # 如果上一次保存时，是否保存是否
+            raise ValueError('No save config!')
+        for key,value in configs.items():
+            eval(key).set(value)
+    except Exception: # 使用原装默认参数
+        project_W.set(1920)
+        project_H.set(1080)
+        project_F.set(30)
+        project_Z.set('BG3,BG2,BG1,Am3,Am2,Am1,Bb')
+        project_Q.set(24)
+        AccessKey.set('Your_AccessKey')
+        AccessKeySecret.set('Your_AccessKey_Secret')
+        Appkey.set('Your_Appkey')
+
     # 获取python解释器的路径
     python3 = sys.executable.replace('\\','/')
     #python3 = 'python' # exe发布版
 
     # 标签页选项
-    tab1 = tk.Radiobutton(Main_windows,text="主程序", font=big_text,command=printFrame,variable=tab,value=1,indicatoron=False)
+    tab1 = tk.Radiobutton(Main_windows,text="主程序", font= big_text,command=printFrame,variable=tab,value=1,indicatoron=False)
     tab2 = tk.Radiobutton(Main_windows,text="语音合成", font=big_text,command=printFrame,variable=tab,value=2,indicatoron=False)
     tab3 = tk.Radiobutton(Main_windows,text="导出XML", font=big_text,command=printFrame,variable=tab,value=3,indicatoron=False)
     tab4 = tk.Radiobutton(Main_windows,text="导出MP4", font=big_text,command=printFrame,variable=tab,value=4,indicatoron=False)
-    tab1.place(x=10,y=10,width=155,height=40)
-    tab2.place(x=165,y=10,width=155,height=40)
-    tab3.place(x=320,y=10,width=155,height=40)
-    tab4.place(x=475,y=10,width=155,height=40)
+    tab5 = tk.Radiobutton(Main_windows,text="音频\n格式转换",command=printFrame,variable=tab,value=5,indicatoron=False)
+    tab1.place(x=10,y=10,width=138,height=40)
+    tab2.place(x=148,y=10,width=138,height=40)
+    tab3.place(x=286,y=10,width=138,height=40)
+    tab4.place(x=424,y=10,width=138,height=40)
+    tab5.place(x=562,y=10,width=68,height=40)
 
     # 四个界面
     main_frame = tk.Frame(Main_windows,height=490 ,width=620)
     synth_frame = tk.Frame(Main_windows,height=490 ,width=620)
     xml_frame = tk.Frame(Main_windows,height=490 ,width=620)
     mp4_frame = tk.Frame(Main_windows,height=490 ,width=620)
-    tab_frame = {1:main_frame,2:synth_frame,3:xml_frame,4:mp4_frame}
+    format_frame = tk.Frame(Main_windows,height=490 ,width=620)
+    tab_frame = {1:main_frame,2:synth_frame,3:xml_frame,4:mp4_frame,5:format_frame}
 
     # 界面的初始值
     tab.set(1)
@@ -961,16 +1106,17 @@ def open_Main_windows():
     flag = tk.LabelFrame(main_frame,text='标志')
     flag.place(x=10,y=320,width=600,height=110)
 
-    tk.Checkbutton(flag,text="先执行语音合成",variable=synthanyway,anchor=tk.W,command=lambda:highlight(synthanyway)).place(x=10,y=5,width=150,height=30)
-    tk.Checkbutton(flag,text="导出为PR项目",variable=exportprxml,anchor=tk.W,command=lambda:highlight(exportprxml)).place(x=10,y=50,width=150,height=30)
-    tk.Checkbutton(flag,text="导出为.mp4视频",variable=exportmp4,anchor=tk.W,command=lambda:highlight(exportmp4)).place(x=170,y=50,width=150,height=30)
-    tk.Checkbutton(flag,text="取消系统缩放",variable=fixscrzoom,anchor=tk.W,command=lambda:highlight(fixscrzoom)).place(x=170,y=5,width=150,height=30)
+    tk.Checkbutton(flag,text="先执行语音合成",variable=synthanyway,anchor=tk.W,command=lambda:highlight(synthanyway)).place(x=10,y=0,width=150,height=30)
+    tk.Checkbutton(flag,text="导出为PR项目",variable=exportprxml,anchor=tk.W,command=lambda:highlight(exportprxml)).place(x=10,y=27,width=150,height=30)
+    tk.Checkbutton(flag,text="导出为.mp4视频",variable=exportmp4,anchor=tk.W,command=lambda:highlight(exportmp4)).place(x=170,y=27,width=150,height=30)
+    tk.Checkbutton(flag,text="取消系统缩放",variable=fixscrzoom,anchor=tk.W,command=lambda:highlight(fixscrzoom)).place(x=170,y=0,width=150,height=30)
+    tk.Checkbutton(flag,text="保存设置内容",variable=save_config,anchor=tk.W).place(x=10,y=55,width=150,height=30)
 
     my_logo = ImageTk.PhotoImage(Image.open('./media/logo.png').resize((236,75)))
     tk.Button(flag,image = my_logo,command=lambda: webbrowser.open('https://github.com/DanDDXuanX/TRPG-Replay-Generator'),relief='flat').place(x=339,y=0)
 
     # 开始
-    tk.Button(main_frame, command=run_command,text="开始",font=big_text).place(x=260,y=435,width=100,height=50)
+    tk.Button(main_frame, command=run_command_main,text="开始",font=big_text).place(x=260,y=435,width=100,height=50)
 
     # synth_frame
     filepath_s = tk.LabelFrame(synth_frame,text='文件路径')
@@ -1097,6 +1243,52 @@ def open_Main_windows():
     tk.Button(flag_v,text='https://ffmpeg.org/',command=lambda: webbrowser.open('https://ffmpeg.org/'),fg='blue',relief='flat').place(x=300,y=40)
 
     tk.Button(mp4_frame, command=run_command_mp4,text="开始",font=big_text).place(x=260,y=435,width=100,height=50)
+
+    # format_frame
+
+    original_file = tk.LabelFrame(format_frame,text='原始音频文件')
+    convert_file = tk.LabelFrame(format_frame,text='转换后音频文件')
+    original_file.place(x=10,y=10,width=600,height=210)
+    convert_file.place(x=10,y=220,width=600,height=210)
+
+    ybar_original = ttk.Scrollbar(original_file,orient='vertical')
+    original_info = ttk.Treeview(original_file,columns=['index','filepath'],show = "headings",selectmode = tk.BROWSE,yscrollcommand=ybar_original.set)
+    ybar_original.config(command=original_info.yview)
+    ybar_original.place(x=575,y=0,height=180,width=15)
+
+    original_info.column("index",anchor = "center",width=40)
+    original_info.column("filepath",anchor = "w",width=520)
+
+    original_info.heading("index", text = "序号")
+    original_info.heading("filepath", text = "路径")
+
+    original_info.place(x=10,y=0,height=180,width=565)
+    #mediainfo.bind('<ButtonRelease-1>', treeviewClick)
+
+    convert_file = tk.LabelFrame(format_frame,text='原始音频文件')
+    convert_file = tk.LabelFrame(format_frame,text='转换后音频文件')
+    convert_file.place(x=10,y=10,width=600,height=210)
+    convert_file.place(x=10,y=220,width=600,height=210)
+
+    ybar_convert = ttk.Scrollbar(convert_file,orient='vertical')
+    convert_info = ttk.Treeview(convert_file,columns=['index','filepath'],show = "headings",selectmode = tk.BROWSE,yscrollcommand=ybar_convert.set)
+    ybar_convert.config(command=convert_info.yview)
+    ybar_convert.place(x=575,y=0,height=180,width=15)
+
+    convert_info.column("index",anchor = "center",width=40)
+    convert_info.column("filepath",anchor = "w",width=520)
+
+    convert_info.heading("index", text = "序号")
+    convert_info.heading("filepath", text = "路径")
+
+    convert_info.place(x=10,y=0,height=180,width=565)
+
+    tk.Button(format_frame, command=load_au_file,text="载入",font=big_text).place(x=65,y=440,width=100,height=40)
+    tk.Button(format_frame, command=clear_au_file,text="清空",font=big_text).place(x=195,y=440,width=100,height=40)
+    tk.Button(format_frame, command=lambda:run_convert('wav'),text="转wav",font=big_text).place(x=325,y=440,width=100,height=40)
+    tk.Button(format_frame, command=lambda:run_convert('ogg'),text="转ogg",font=big_text).place(x=455,y=440,width=100,height=40)
+
+    # Mainloop
     Main_windows.mainloop()
 
 if __name__=='__main__':

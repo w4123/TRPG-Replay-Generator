@@ -26,6 +26,12 @@
 2. 查看[帮助文档](https://help.aliyun.com/document_detail/374323.html)
 3. 获得[阿里云AccessKey、AccessKey_Secret、Appkey](https://ram.console.aliyun.com/manage/ak)
 
+## 程序下载
+
+[**免安装版** 93.6MB](https://github.com/DanDDXuanX/TRPG-Replay-Generator/releases/download/v1.0.0/TRPG-Replay-Generator-v1.0.0-win64.7z)
+
+[**源代码** 25MB](https://github.com/DanDDXuanX/TRPG-Replay-Generator/releases/download/v1.0.0/TRPG-Replay-Generator-v1.0.0-SourceCode.7z)
+
 ## 快速上手
 
 ### 1. 使用源码release
@@ -39,7 +45,7 @@ pip install -r ./requirements.txt
 ```bash
 python ./replay_generator.py -l ./toy/LogFile.txt -d ./toy/MediaObject.txt -t ./toy/CharactorTable.csv
 ```
-4. 进入程序后，按空格键（SPACE）开始播放，播放的过程中，按A键跳转到前一小节，D键跳转到后一小节，按空格暂停播放，ESC键终止播放并退出。
+4. 进入程序后，按空格键（SPACE）开始播放；播放的过程中，按A键跳转到前一小节，D键跳转到后一小节，按空格暂停播放，按F5键展示详细信息，按F11键将画面缩放至50%，ESC键终止播放并退出。
 
 ### 2. 使用可执行文件release
 
@@ -47,45 +53,19 @@ python ./replay_generator.py -l ./toy/LogFile.txt -d ./toy/MediaObject.txt -t ./
 2. 运行 `TRPG-Replay-Generator-v1.0.0.exe` 打开图形界面；<br>
 3. 在媒体定义栏输入 `./toy/MediaObject.txt` ，角色定义栏输入 `./toy/CharactorTable.csv` ，log文件栏输入 `./toy/LogFile.txt` ；<br>
 4. 点击开始，即可开始放映示例项目；<br>
-5. 进入程序后，按空格键（SPACE）开始播放，播放的过程中，按A键跳转到前一小节，D键跳转到后一小节，按空格暂停播放，ESC键终止播放并退出。
+5. 进入程序后，按空格键（SPACE）开始播放；播放的过程中，按A键跳转到前一小节，D键跳转到后一小节，按空格暂停播放，按F5键展示详细信息，按F11键将画面缩放至50%，ESC键终止播放并退出。
 
 > 注意：可执行文件release无需安装python环境即可运行，但是在效能和稳定性上比运行源码略差。
 
-# 参考文档（文档版本 version 1.0.0）
+# 参考文档（文档版本 version 1.0.1）
 
-## 主程序replay_generator.py
+## 输入文件格式
 
-**主程序的参数：**
-
-1. **--LogFile, -l** ：必要参数，log文件的路径，文件格式要求详见 [文件格式.log文件](./README.md#3-log文件)；
-2. **--MediaObjDefine, -d** ：必要参数，媒体定义文件的路径，文件格式要求参考 [文件格式.媒体定义文件](./README.md#1-媒体定义文件)；
-3. **--CharacterTable, -t** ：必要参数，角色表文件的路径，格式为制表符分隔的数据表，或者Excel电子表格，包含至少Name、Subtype、Animation、Bubble4列；
-4. ***--OutputPath, -o*** ：可选参数，输出文件的目录；如果输入了该标志，则项目的时间轴、断点文件、内建对象文件将输出到指定的目录，格式分别为timeline、breakpoint、bulitinmedia。如果指定了其他输出标志，相应的文件也将输出到指定的目录。
-
-5. ***--FramePerSecond, -F*** ：可选参数，播放的帧率，单位是fps；默认值是30fps；
-6. ***--Width, -W*** ：可选参数，窗体的宽；默认值是1920；
-7. ***--Height, -H*** ：可选参数，窗体的高；默认值是1080；
-8. ***--Zorder, -Z*** ：可选参数，渲染的图层顺序；通常不建议修改这个参数，除非必要。格式要求详见 [进阶使用.图层顺序](./README.md#--zorder-图层顺序)。
-
-9. ***--AccessKey, -K*** ：可选参数，阿里云账号的AccessKey，执行语音合成时所必须的；
-10. ***--AccessKeySecret, -S*** ：可选参数，阿里云账号的AccessKeySecret，执行语音合成时所必须的；
-11. ***--Appkey, -A*** ：可选参数，阿里云语音合成应用的Appkey，执行语音合成时所必须的。
-12. ***--Quality, -Q*** :可选参数，导出为mp4视频时的质量，即ffmpeg程序的crf值；取值范围为0-51，越小对应越高的视频质量，通常合理范围为18-28；默认值是24
-
-13. ***--ExportXML*** ：可选标志，如果使用该标志，会输出一个能导入到PR的XML文件，以及其引用的一系列PNG图片到输出目录。
-14. ***--ExportVideo*** ：可选标志，如果使用该标志，会导出一个和窗口中播放的内容完全一致的MP4视频。使用该标志则会跳过窗口播放。
-15. ***--SynthesisAnyway*** ：可选标志，如果使用该标志，会对log文件中尚未处理的星标行进行语音合成；一系列WAV音频到会输出到输出目录。
-16. ***--FixScreenZoom*** ：可选参数，仅在windows系统上生效。使用该标志以消除由于windows系统缩放倍率，而导致的窗体尺寸异常。
-
-**主程序命令例子：**
-
-```bash
-python replay_generator.py -l LogFile.txt -d MediaDefine.txt -t CharactorTable.csv -F 30 --ExportVideo
-```
+本程序的工程由三个文本文件构成：媒体定义文件、角色配置文件、log文件。作为输入文件的所有文本文件，均需要使用 `utf-8` 编码。
 
 ### 1. 媒体定义文件
 
-媒体定义文件用于定义项目中使用的媒体对象，及其引用的文件；媒体定义文件使用类似python类实例化的语法。<p>
+媒体定义文件定义了工程中所需要使用的媒体对象，作为整个工程调用的资源；媒体定义文件使用类似python类实例化的语法。<p>
 目前版本中，可用的对象包括下列：
 
 ![媒体定义的示意图](./doc/media_def.png)
@@ -96,12 +76,12 @@ Text(fontfile='./media/SourceHanSansCN-Regular.otf',fontsize=40,color=(0,0,0,255
 StrokeText(fontfile='./media/SourceHanSansCN-Regular.otf',fontsize=40,color=(0,0,0,255),line_limit=20,edge_color=(255,255,255,255))
 ```
 
-- 文本是气泡对象的一部分，无法单独使用；
-- `fontfile`	可选参数，指定一个字体文件的路径；默认参数是 思源黑体-regular；
-- `fontsize`	可选参数，设置字体的字号，合理的参数是大于0的整数；默认为40；
-- `color`	可选参数，设置字体的颜色，是一个4元素的tuple，对应(R,G,B,A)，四个元素应为0-255的整数；默认值是黑色；
-- `line_limit`	可选参数，设置单行显示的字符数量上限，超过上限会触发自动换行；默认为20字；
-- `edge_color`	可选参数，设置字体的描边颜色，仅描边文本可用，是一个4元素的tuple，对应(R,G,B,A)，四个元素应为0-255的整数；默认值是白色。
+	- 文本是气泡对象的一部分，无法单独使用；
+	- `fontfile`	可选参数，指定一个字体文件的路径；默认参数是 思源黑体-regular；
+	- `fontsize`	可选参数，设置字体的字号，合理的参数是大于0的整数；默认为40；
+	- `color`	可选参数，设置字体的颜色，是一个4元素的元组，对应(R,G,B,A)，四个元素应为0-255的整数；默认值是黑色；
+	- `line_limit`	可选参数，设置单行显示的字符数量上限，超过上限会触发自动换行；默认为20字；
+	- `edge_color`	可选参数，设置字体的描边颜色，仅描边文本可用，是一个4元素的元组，对应(R,G,B,A)，四个元素应为0-255的整数；默认值是白色。
 
 > 注意：由于气泡对象需要引用文本对象，因此，文本对象在媒体定义文件中的位置必须在气泡对象的定义之前！。
 
@@ -110,40 +90,40 @@ StrokeText(fontfile='./media/SourceHanSansCN-Regular.otf',fontsize=40,color=(0,0
 Bubble(filepath,Main_Text=Text(),Header_Text=None,pos=(0,0),mt_pos=(0,0),ht_pos=(0,0),align='left',line_distance=1.5)
 ```
 
-- 气泡是一个文本框，在角色发言时显示，包含了主文本、头文本、底图三个组成部分。
-- `filepath`	必要参数，指定一个图片文件的路径；即使不需要底图，也需要指定一个空白底图的路径；
-- `Main_Text`	可选参数，为主文本指定一个Text或者StrokeText类的变量；主文本对应中的 *发言文本*；默认值是默认参数的Text对象，也可以设置为None；
-- `Header_Text`	可选参数，为头文本指定一个Text或者StrokeText类的变量；头文本对应发言者的角色名；默认为None，既无头文本；
-- `pos`	可选参数，设置气泡在屏幕上的位置，是一个2元素的tuple，对应(X,Y)；默认为(0,0)，即左上角；
-- `mt_pos`	可选参数，设置主文本相对于气泡底图的位置，是一个2元素的tuple，对应(X,Y)；默认为(0,0)，即左上角；
-- `ht_pos`	可选参数，设置头文本相对于气泡底图的位置，是一个2元素的tuple，对应(X,Y)；默认为(0,0)，即左上角；
-- `align`	可选参数，设置主文本的对齐模式，可选项有`"left"`、`"center"`，分别对应左侧对齐和居中对齐；默认为左侧对齐；
-- `line_distance`	可选参数，设置了多行显示时的行距，默认值为1.5倍行距。
+	- 气泡是一个文本框，在角色发言时显示，包含了主文本、头文本、底图三个组成部分。
+	- `filepath`	必要参数，指定一个图片文件的路径；即使不需要底图，也需要指定一个空白底图的路径；
+	- `Main_Text`	可选参数，为主文本指定一个 `Text`或者`StrokeText` 类的变量；主文本对应 *log文件* 中的 *发言文本*；默认值是默认参数的Text对象，不可以设置为None；
+	- `Header_Text`	可选参数，为头文本指定一个 `Text`或者`StrokeText` 类的变量；头文本对应发言者的角色名；默认为None，既无头文本；
+	- `pos`	可选参数，设置气泡在屏幕上的位置，是一个2元素的元组，对应 (X,Y)；默认为 (0,0)，即左上角；
+	- `mt_pos`	可选参数，设置主文本相对于气泡底图的位置，是一个2元素的元组，对应 (X,Y)；默认为 (0,0)，即左上角；
+	- `ht_pos`	可选参数，设置头文本相对于气泡底图的位置，是一个2元素的元组，对应 (X,Y)；默认为 (0,0)，即左上角；
+	- `align`	可选参数，设置主文本的对齐模式，可选项有`"left"`、`"center"`，分别对应左侧对齐和居中对齐；默认为左侧对齐；
+	- `line_distance`	可选参数，设置了多行显示时的行距，默认值为1.5倍行距。
 
 3.	**背景 Background**
 ```python
 Background(filepath,pos=(0,0))
 ```
 
-- 背景指整个屏幕的背景，通常位于最下的图层，可以在log文件中的 *背景行* 中设置背景及其切换效果
-- `filepath`	必要参数，指定一个图片文件的路径，或者指定`{'black','white','greenscreen'}`中的一个。
-- `pos`	可选参数，指定了背景在屏幕上的位置，是一个2元素的tuple，对应(X,Y)，默认为(0,0)，即左上角。
+	- 背景指整个屏幕的背景，通常位于最下的图层，可以在 *log文件* 中的 *背景行* 中设置背景及其切换效果；
+	- `filepath`	必要参数，指定一个图片文件的路径；或者指定为 `{'black','white','greenscreen'}` 中的一个，以建立纯色背景；
+	- `pos`	可选参数，指定了背景在屏幕上的位置，是一个2元素的元组，对应(X,Y)，默认为(0,0)，即左上角。
 
-> 注意：由于背景图通常都是全屏的图片，因此不建议修改Background的pos的默认值。
+> 注意：由于背景图通常都是全屏的图片，因此不建议修改 `Background` 的pos的默认值。
 
 4.	**立绘 Animation**
 ```python
 Animation(filepath,pos=(0,0),tick=1,loop=True)
 ```
 
-- 立绘指和角色绑定的个人形象图片或动画，通常位于背景的上层，气泡的下层。
-- `filepath`	必要参数，指定一个图片文件的路径；或通过通配符指定一系列顺序命名的图片文件的路径，以设置为动态立绘。
-- `pos`	可选参数，指定了立绘在屏幕上的位置，是一个2元素的tuple，对应(X,Y)，默认为(0,0)，即左上角。
-- `tick`	可选参数，仅在动态立绘中生效，设置立绘动画的拍率，单位为 帧/拍；默认为1，即一拍一。
-- `loop`	可选参数，仅在动态立绘中生效，设置立绘动画是否循环播放，可以是`True`或者`False`，设置为否时，当动态立绘的完整播放了一次之后，会停留在最后帧；默认是`True`，即循环播放。
+	- 立绘指和角色绑定的个人形象图片或动画，通常位于背景的上层，气泡的下层。
+	- `filepath`	必要参数，指定一个图片文件的路径；或通过通配符指定一系列顺序命名的图片文件的路径，以设置为动态立绘。
+	- `pos`	可选参数，指定了立绘在屏幕上的位置，是一个2元素的元组，对应(X,Y)，默认为(0,0)，即左上角。
+	- `tick`	可选参数，仅在动态立绘中生效，设置立绘动画的拍率，单位为 帧/拍；默认为1，即一拍一。
+	- `loop`	可选参数，仅在动态立绘中生效，设置立绘动画是否循环播放，可以是`True`或者`False`，设置为否时，当动态立绘的完整播放了一次之后，会停留在最后帧；默认是`True`，即循环播放。
 
 > 注意：一个角色可以在不同的subtype下指定不同的立绘，用于实现差分效果；使用时在log文件的对话行里指定到不同的subtype。<p>
-> 注意：如果希望实现多人同框效果，建议为同框时的立绘另外建立Animation对象，并在定义时指定合适的位置。<p>
+> 注意：如果希望实现多人同框效果，建议为同框时的立绘另外建立 `Animation` 对象，并在定义时指定合适的位置。<p>
 > 注意：在路径中使用符号`*`代表匹配任意字符；建议以位数相同的数字命名动态立绘。例如test_000.png、test_001.png。
 
 5.	**背景音乐 BGM**
@@ -151,10 +131,10 @@ Animation(filepath,pos=(0,0),tick=1,loop=True)
 BGM(filepath,volume=100,loop=True)
 ```
 
-- BGM指长的，一直位于后台循环播放的音频；支持的格式是 .ogg ，如果是 .mp3 格式的背景音乐，建议先进行格式转换。
-- `filepath`	必要参数，指定一个音频文件的路径。
-- `volume`	可选参数，设置背景音乐的音量，合理的参数是0-100的整数；默认为100；
-- `loop`	可选参数，设置背景音乐是否会循环播放；默认为循环播放；如果需要不循环，设置为`False`；
+	- 背景音乐指长的，一直位于后台循环播放的音频；支持的格式是 `.ogg` ，如果是 `.mp3` 格式的背景音乐，建议先进行格式转换。
+	- `filepath`	必要参数，指定一个音频文件的路径。
+	- `volume`	可选参数，设置背景音乐的音量，合理的参数是0-100的整数；默认为100；
+	- `loop`	可选参数，设置背景音乐是否会循环播放；默认为循环播放；如果需要不循环，设置为`False`；
 
 > 注意：BGM建议使用.ogg格式的音频，否则有可能出现程序的不稳定。另外，建议在后期制作软件中手动加入BGM。<p>
 > 注意：BGM和audio的逻辑不同，不可混用！
@@ -164,29 +144,30 @@ BGM(filepath,volume=100,loop=True)
 Audio(filepath)
 ```
 
-- 音效指短音频，音效通常只会完整地播放一次。
-- `filepath`	必要参数，指定一个音频文件的路径。
+	- 音效指短音频，音效通常只会完整地播放一次。
+	- `filepath`	必要参数，指定一个音频文件的路径。
 
-> 注意：replay视频中通常包含大量的语音文件，不建议全建立Audio对象，会消耗较大的内存，在Log文件的 *对话行* 的 *音效框* 里指定文件路径即可。<p>
+> 注意：replay视频中通常包含大量的语音文件，不建议全建立 `Audio` 对象，会消耗较大的内存，在Log文件的 *对话行* 的 *音效框* 里指定文件路径即可。<p>
 > 注意：本文提及的 *文件路径* 的格式均为字符串，即需要引号引起来。例子：`"./pic/zhang.png"`<p>
 > 注意：定义的媒体的变量名需要符合python变量名标准，且不可以和部分程序代码中已占用的关键字（详见[已占用关键字](./media/occupied_variable_name.list)）相互相互重合。
 
 **媒体定义文件例子：**<p>
 参考[示例媒体定义文件](./toy/MediaObject.txt)
 
-### 2. 角色设置文件
+### 2. 角色配置文件
 
-角色设置文件是一个制表符`'\t'`分隔的数据表文件，或者Excel电子表格，用于配置角色和 *立绘、气泡、声音* 等媒体对象的对应关系；用于replay_generator主程序的角色设置文件需要至少包括 `Name、Subtype、Animation、Bubble` 四列；用于speech_synthesizer程序的角色设置文件需要至少包括 `Name、Subtype、Voice` 三列，`SpeechRate、PitchRate` 两列是可选的。
+角色配置文件指明了各个角色和各项媒体资源之间的对应关系。<p>
+角色配置文件是一个制表符`'\t'`分隔的数据表文件，或者Excel电子表格，用于配置角色和 *立绘、气泡、声音* 等媒体对象的对应关系；用于replay_generator主程序的角色配置文件需要至少包括 `Name、Subtype、Animation、Bubble` 四列；用于speech_synthesizer程序的角色配置文件需要至少包括 `Name、Subtype、Voice` 三列，`SpeechRate、PitchRate` 两列是可选的。
 
 - Name列，角色的名称，和 *Log文件-对话行-角色框* 内的名称相互对应；名称可以包含英文字符，空格，数字，下划线，中文，不可以包含任何其他字符。
 - Subtype列，角色的差分名称；差分名称可以包含英文字符，数字，下划线，中文，不可以包含空格；每个Name必须要有一个Subtype是default，且不可以有重复的Subtype。
-- Animation列，角色立绘对象；需要是 *媒体定义文件* 中已经定义的Animation类的变量名，或者使用 NA 表示缺省。
-- Bubble列，发言气泡对象；需要是 *媒体定义文件* 中已定义的Bubble类的变量名，或者使用 NA 表示缺省。
+- Animation列，角色立绘对象；需要是 *媒体定义文件* 中已经定义的 `Animation` 类的变量名，或者使用 NA 表示缺省。
+- Bubble列，发言气泡对象；需要是 *媒体定义文件* 中已定义的 `Bubble` 类的变量名，或者使用 NA 表示缺省。
 - Voice列，角色配音的音源名；所有可选的Voice详见[可用的语音](./doc/aliyun_available_voice.md)；不需要语音的角色使用 NA 表示缺省。
 - SpeechRate列，角色配音的语速；取值范围是(-500,500)，对应0.5倍速至2倍速。
 - PitchRate列，角色配音的语调；取值范围是(-500,500)，对应低八度至高八度。详见[接口说明](https://help.aliyun.com/document_detail/84435.html)
 
-角色设置文件例子：
+角色配置文件例子：
 
 |Name|Subtype|Animation|Bubble|Voice|SpeechRate|PitchRate|
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|
@@ -196,18 +177,19 @@ Audio(filepath)
 |旁白|default|NA|bubble2|NA|NA|NA|
 
 > 注意：骰子、旁白等弹窗型气泡，也可以以“角色”的形式定义在本文件中。<p>
-> 注意：缺失Bubble的角色不可以作为发言行的主发言人。
+> 注意：缺失 `Bubble` 的角色不可以作为发言行的主发言人。
 
 ### 3. Log文件
 log文件是整个演示的剧本文件，决定了演示的内容和效果；<p>
-log文件有4类有效行，对话行，背景行，设置行和内建动画行，分别有其对应的格式。
+log文件有4类有效行，对话行，背景行，设置行和内建动画行，分别有其对应的格式。<p>
+log文件中每个行是均是一个独立的单元，文本内容不能跨行。
 
 #### A. 对话行
 ```
 [name1(100).default,name2(60).default,name3(60).default]<replace=0>:Talk#Text.<all=0>{"./audio/1.ogg";30}{Audio;*30}
 ```
 
-通过对话行，在演示中展示角色的 *立绘* ，并用相应的 *气泡* 显示 *发言文本* 中的文字。对应关系在 *角色设置文件* 中定义。
+通过对话行，在演示中展示角色的 *立绘* ，并用相应的 *气泡* 显示 *发言文本* 中的文字。对应关系在 *角色配置文件* 中定义。
 
 1.	**角色框：**`[name(alpha).subtype;...]`
 	- 角色框内最多指定 3 个角色，同框角色的立绘都将展示出来；
@@ -233,7 +215,6 @@ log文件有4类有效行，对话行，背景行，设置行和内建动画行�
 	- 一个对话行可以有多个音效框；
 	- 若在音效框的time数值前添加星号 `*` ，则本小节的总时长将受到星标时间的控制。总时长 = time + asterisk_pause。
 
-> 注意：在角色名后使用(alpha)指定透明度时，不可以设置为100，这样是无效的。设置为99即可。
 > 注意：在使用 `#` 进行手动换行的句子里，如果第一行长度超过line_limit，在 `<w2w>` 模式仍会自动换行，直到第一个 `#` 被触发为止。为了避免这种情况的发生，在句首声明 `^`。<p>
 > 注意：当文本展示效果为 `<all>` 时，单位时间指显示的延迟帧数。<p>
 > 注意：星标音频的单位是秒，而非帧；星标的音效通常由 *speech_synthesizer.py* 自动生成。请谨慎地手动设置星标音效。
@@ -259,7 +240,7 @@ log文件有4类有效行，对话行，背景行，设置行和内建动画行�
 <background><replace=0>:Background
 ```
 
-通过背景行，切换播放的背景图片。
+在背景行中指定一个 `Background` 类的媒体对象，以切换播放的背景图片。
 1.	**背景行的识别标志：**`<background>` 是背景行的必要组成部分。
 2.	**切换效果修饰符：**`<method=time>` 背景切换效果（method）包括：
 	- `cross`：交叉溶解，新的背景会逐渐覆盖原背景，参数是整个渐变的时长
@@ -309,18 +290,20 @@ set:后跟需要设置的全局变量名；
 	- 当对话行中缺省 *文本效果修饰符* 时，使用该默认值
 	- 可选的选项有 `all、w2w、l2l`；
 	- 例如 `[name]:talk` ，等价于 `[name]<replace=0>:talk<all=1>`
-8.	`tx_dur_default`：默认文本展示时间，初始值是：8，单位是帧。
+8.	`tx_dur_default`：默认文本展示时间，初始值是：5，单位是帧。
 	- 当对话行的`<文本效果修饰符>`中未指定时间，则使用该默认值；
 	- 例如 `<l2l>`，等价于 `<l2l=8>`。
 9.	`speech_speed`：语速，初始值是：220，单位是 words/min。
 	- 语速将影响每个小节的持续时间，当小节没有指定星标音频的时候。
 10.	`asterisk_pause`：星标音频的间隔时间，初始值是：20，单位是帧。
 	- asterisk_pause 仅能通过 *设置行* 进行设置，会应用于之后所有的星标音频。
-11.	`BGM`：背景音乐
+11. `secondary_alpha`：次要立绘的透明度，初始值是：60，单位是百分之。
+	- 当对话行的角色框里未给角色指定透明度，则除了第一立绘以外，剩余角色立绘使用该默认值作为透明度。
+12.	`BGM`：背景音乐
 	- 使用`<set:BGM>`: 设置背景音乐时，需要指定一个BGM对象，或一个.ogg音频文件的路径；
 	- `<set:BGM>:stop` 可以终止背景音乐的播放。
 	- 背景音乐的设置在下一个 *对话行* 或 *内建动画行* 的第一帧生效。
-12.	`formula`：切换效果的曲线函数，初始值是：linear，即线性。
+13.	`formula`：切换效果的曲线函数，初始值是：linear，即线性。
 	- 目前可用的formula包括 `linear(线性)、quadratic(二次)、quadraticR(二次反向)、sigmoid(S型)、sincurve(正弦)、left(左锋)和right(右峰)`；
 	- formula可以接受 lambda函数 形式定义的自定义函数，自定义函数需要以 `(begin,end,duration)` 为参数；
 	- formula仅能通过 *设置行* 进行设置，会应用于之后所有的切换效果。
@@ -393,6 +376,36 @@ set:后跟需要设置的全局变量名；
 
 > 注意：当同一类关键字出现了多次时，将以最后一次为准；未出现的关键字类型则采用默认值。
 
+## 主程序replay_generator.py
+
+**主程序的参数：**
+
+1. **--LogFile, -l** ：必要参数，log文件的路径，文件格式要求详见 [输入文件格式.log文件](./README.md#3-log文件)；
+2. **--MediaObjDefine, -d** ：必要参数，媒体定义文件的路径，文件格式要求参考 [输入文件格式.媒体定义文件](./README.md#1-媒体定义文件)；
+3. **--CharacterTable, -t** ：必要参数，角色表文件的路径，格式为制表符分隔的数据表，或者Excel电子表格，包含至少Name、Subtype、Animation、Bubble4列；
+4. ***--OutputPath, -o*** ：可选参数，输出文件的目录；如果输入了该标志，则项目的时间轴、断点文件、内建对象文件将输出到指定的目录，格式分别为timeline、breakpoint、bulitinmedia。如果指定了其他输出标志，相应的文件也将输出到指定的目录。
+
+5. ***--FramePerSecond, -F*** ：可选参数，播放的帧率，单位是fps；默认值是30fps；
+6. ***--Width, -W*** ：可选参数，窗体的宽；默认值是1920；
+7. ***--Height, -H*** ：可选参数，窗体的高；默认值是1080；
+8. ***--Zorder, -Z*** ：可选参数，渲染的图层顺序；通常不建议修改这个参数，除非必要。格式要求详见 [进阶使用.图层顺序](./README.md#--zorder-图层顺序)。
+
+9. ***--AccessKey, -K*** ：可选参数，阿里云账号的AccessKey，执行语音合成时所必须的；
+10. ***--AccessKeySecret, -S*** ：可选参数，阿里云账号的AccessKeySecret，执行语音合成时所必须的；
+11. ***--Appkey, -A*** ：可选参数，阿里云语音合成应用的Appkey，执行语音合成时所必须的。
+12. ***--Quality, -Q*** :可选参数，导出为mp4视频时的质量，即ffmpeg程序的crf值；取值范围为0-51，越小对应越高的视频质量，通常合理范围为18-28；默认值是24
+
+13. ***--ExportXML*** ：可选标志，如果使用该标志，会输出一个能导入到PR的XML文件，以及其引用的一系列PNG图片到输出目录。
+14. ***--ExportVideo*** ：可选标志，如果使用该标志，会导出一个和窗口中播放的内容完全一致的MP4视频。使用该标志则会跳过窗口播放。
+15. ***--SynthesisAnyway*** ：可选标志，如果使用该标志，会对log文件中尚未处理的星标行进行语音合成；一系列WAV音频到会输出到输出目录。
+16. ***--FixScreenZoom*** ：可选参数，仅在windows系统上生效。使用该标志以消除由于windows系统缩放倍率，而导致的窗体尺寸异常。
+
+**主程序命令例子：**
+
+```bash
+python replay_generator.py -l LogFile.txt -d MediaDefine.txt -t CharactorTable.csv -F 30 --ExportVideo
+```
+
 ## 语音合成模块speech_synthesizer.py
 
 **语音合成模块的参数**
@@ -433,7 +446,7 @@ python speech_synthesizer.py -l LogFile.txt -d MediaDefine.txt -t CharactorTable
 #### 待处理星标的格式
 
 1. `{*}` ：待语音合成的标志，将本对话行的全部发言文本执行语音合成；
-2. `{*speech_text}` ：合成指定文本的语音，而使用对话行的发言文本；
+2. `{*speech_text}` ：合成指定文本的语音的标志；指定文本只能包含`，。：？！“”`等中文符号；
 3. `{"./media/voice.wav",*}` ：当需要使用外部音频，而非语音合成时，可以读取音频文件持续时间，并填补到星标之后；这可以使小节的时长和音频时长同步。
 
 待处理log文件例子:
@@ -516,6 +529,19 @@ python gui.py
 出于易用性的考虑，使用图形界面将上述四个模块包装。
 
 ![GUI例图](./doc/gui.png)
+
+## 其他工具
+
+### Sublime Text Syntax Highlight
+
+本程序提供了在 **Sublime Text 3** 中使用的[Log文件高亮规则](./tools_scripts/RplGenLog.sublime-syntax)，以便于Log文件的编辑。<p>
+![Syntax例图](./doc/syntax.png)
+
+**使用方法**：
+1. 将 `RplGenLog.sublime-syntax` 文件复制到 `~\AppData\Roaming\Sublime Text 3\Packages\User`（windows系统）路径下；
+2. 在Sublime Text中，右下角选择语言为 `RplGenLog`；
+
+> 注意：该高亮规则的默认文件格式为 `.rgl`
 
 # 进阶使用
 

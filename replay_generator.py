@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-edtion = 'version 1.0.0'
+edtion = 'alpha 1.10.0'
 
 # 外部参数输入
 
@@ -41,7 +41,10 @@ def system_terminated(exit_type='Error'):
                   'Video':'Video exported. Execution terminated!',
                   'End':'Display finished!'}
     print('[replay generator]: '+exit_print[exit_type])
-    sys.exit()
+    if exit_type == 'Error':
+        sys.exit(1) # 错误退出的代码
+    else:
+        sys.exit(0) # 正常退出的代码
 
 media_obj = args.MediaObjDefine #媒体对象定义文件的路径
 char_tab = args.CharacterTable #角色和媒体对象的对应关系文件的路径
@@ -103,7 +106,7 @@ import time #开发模式，显示渲染帧率
 import glob # 匹配路径
 
 
-# 类定义 alpha 1.8.4
+# 类定义 alpha 1.9.6
 
 # 文字对象
 class Text:
@@ -120,6 +123,8 @@ class Text:
         return face
     def draw(self,text):
         out_text = []
+        if text == '':
+            return []
         if ('#' in text) | (text[0]=='^'): #如果有手动指定的换行符 # bug:如果手动换行，但是第一个#在30字以外，异常的显示
             if text[0]=='^': # 如果使用^指定的手动换行，则先去掉这个字符。
                 text = text[1:]
@@ -163,9 +168,10 @@ class Bubble:
         self.mt_pos = mt_pos
         self.Header = Header_Text
         self.ht_pos = ht_pos
-        if line_distance > 1:
+        if line_distance >= 1:
             self.line_distance = line_distance
         elif line_distance > 0:
+            self.line_distance = line_distance # alpha 1.9.2 debug 当linedistance低于1时，忘记初始化line_distance这个参数了
             print("[33m[warning]:[0m",'Line distance is set to less than 1!')
         else:
             raise MediaError('[31m[BubbleError]:[0m', 'Invalid line distance:',line_distance)
@@ -532,9 +538,10 @@ RE_setting = re.compile('^<set:([\w\_]+)>:(.+)$')
 RE_characor = re.compile('([\w\ ]+)(\(\d*\))?(\.\w+)?')
 RE_modify = re.compile('<(\w+)(=\d+)?>')
 RE_sound = re.compile('({.+?})')
-RE_asterisk = re.compile('(\{([^\{\}]*?[,;])?\*([\w\.\,，]*)?\})') # v 1.7.3 修改匹配模式以匹配任何可能的字符（除了花括号）
+RE_asterisk = re.compile('(\{([^\{\}]*?[,;])?\*([\w\.\,，。：？！“”]*)?\})') # v 1.8.7 给星标后文本额外增加几个可用的中文符号
 RE_hitpoint = re.compile('<hitpoint>:\((.+?),(\d+),(\d+),(\d+)\)') # a 1.6.5 血条预设动画
 RE_dice = re.compile('\((.+?),(\d+),([\d]+|NA),(\d+)\)') # a 1.7.5 骰子预设动画，老虎机
+#RE_asterisk = re.compile('(\{([^\{\}]*?[,;])?\*([\w\.\,，]*)?\})') # v 1.7.3 修改匹配模式以匹配任何可能的字符（除了花括号）
 #RE_asterisk = re.compile('\{\w+[;,]\*(\d+\.?\d*)\}') # 这种格式对于{path;*time的}的格式无效！
 #RE_asterisk = re.compile('(\{([\w\.\\\/\'\":]*?[,;])?\*([\w\.\,，]*)?\})') # a 1.4.3 修改了星标的正则（和ss一致）,这种对于有复杂字符的路径无效！
 
@@ -542,10 +549,10 @@ RE_dice = re.compile('\((.+?),(\d+),([\d]+|NA),(\d+)\)') # a 1.7.5 骰子预设�
 
 python3 = sys.executable.replace('\\','/') # 获取python解释器的路径
 
-cmap = {'black':(0,0,0,255),'white':(255,255,255,255),'greenscreen':(0,177,64,255)}
+cmap = {'black':(0,0,0,255),'white':(255,255,255,255),'greenscreen':(0,177,64,255),'notetext':(118,185,0,255)}
 #render_arg = ['BG1','BG1_a','BG2','BG2_a','BG3','BG3_a','Am1','Am1_a','Am2','Am2_a','Am3','Am3_a','Bb','Bb_main','Bb_header','Bb_a']
 #render_arg = ['BG1','BG1_a','BG2','BG2_a','BG3','BG3_a','Am1','Am1_a','Am2','Am2_a','Am3','Am3_a','Bb','Bb_main','Bb_header','Bb_a','BGM','Voice','SE']
-render_arg = ['BG1','BG1_a','BG1_p','BG2','BG2_a','BG2_p','BG3','BG3_a','BG3_p',
+render_arg = ['section','BG1','BG1_a','BG1_p','BG2','BG2_a','BG2_p','BG3','BG3_a','BG3_p',
               'Am1','Am1_t','Am1_a','Am1_p','Am2','Am2_t','Am2_a','Am2_p','Am3','Am3_t','Am3_a','Am3_p',
               'Bb','Bb_main','Bb_header','Bb_a','Bb_p','BGM','Voice','SE']
 # 1.6.3 Am的更新，再新增一列，动画的帧！
@@ -601,6 +608,8 @@ tx_dur_default = 5 #默认单字展示时间参数
 speech_speed = 220 #语速，单位word per minute
 formula = linear #默认的曲线函数
 asterisk_pause = 20 # 星标音频的句间间隔 a1.4.3，单位是帧，通过处理delay
+
+secondary_alpha = 60 # a 1.8.8 次要立绘的默认透明度
 
 # 其他函数定义
 
@@ -711,12 +720,12 @@ def am_methods(method_name,method_dur,this_duration,i):
         elif 'DG' == key[0:2]:
             try:
                 method_args['direction'] = float(key[2:])
-            except:
+            except Exception:
                 raise ParserError('[31m[ParserError]:[0m Unrecognized switch method: "'+method_name+'" appeared in dialogue line ' + str(i+1)+'.')
         else:
             try:
                 method_args['scale'] = int(key)
-            except:
+            except Exception:
                 raise ParserError('[31m[ParserError]:[0m Unrecognized switch method: "'+method_name+'" appeared in dialogue line ' + str(i+1)+'.')
     # 切入，切出，或者双端
     cutin,cutout ={'in':(1,0),'out':(0,1),'both':(1,1)}[method_args['cut']]
@@ -735,7 +744,7 @@ def am_methods(method_name,method_dur,this_duration,i):
     # direction
     try:
         theta = np.deg2rad(direction_dic[method_args['direction']])
-    except: # 设定为角度
+    except Exception: # 设定为角度
         theta = np.deg2rad(method_args['direction'])
     # scale
     if method_args['scale'] in ['major','minor','entire']: #上下绑定屏幕高度，左右绑定屏幕宽度*scale_dic[method_args['scale']]
@@ -807,7 +816,7 @@ def parser(stdin_text):
                     try:
                         asterisk_time = float(asterisk_timeset[0][-1]) #取第二个，转化为浮点数
                         this_duration = asterisk_pause + np.ceil((asterisk_time)*frame_rate).astype(int) # a1.4.3 添加了句间停顿
-                    except:
+                    except Exception:
                         print('[33m[warning]:[0m','Failed to load asterisk time in dialogue line ' + str(i+1)+'.')
                 else: #检测到复数个星标
                     raise ParserError('[31m[ParserError]:[0m Too much asterisk time labels are set in dialogue line ' + str(i+1)+'.')
@@ -832,7 +841,7 @@ def parser(stdin_text):
                     if subtype == '':
                         subtype = '.default'
                     if alpha == '':
-                        alpha = 100
+                        alpha = -1
                     else:
                         alpha = int(alpha[1:-1])
                     # 立绘的参数
@@ -863,22 +872,27 @@ def parser(stdin_text):
                         this_timeline['Bb_a'] = alpha_timeline_B*100
                         this_timeline['Bb_p'] = pos_timeline_B
                     #透明度参数
-                    if (k!=0)&(alpha==100):#如果非第一角色，且没有指定透明度，则使用正常透明度60%
-                        this_timeline['Am'+str(k+1)+'_a']=alpha_timeline_A*60
-                    else:#否则，使用正常透明度
+                    if (alpha >= 0)&(alpha <= 100): # alpha 1.8.8 如果有指定合法的透明度，则使用指定透明度
                         this_timeline['Am'+str(k+1)+'_a']=alpha_timeline_A*alpha
+                    else: # 如果没有指定透明度
+                        if k == 0: # 如果是首要角色，透明度为100
+                            this_timeline['Am'+str(k+1)+'_a']=alpha_timeline_A*100
+                        else: # 如果是次要角色，透明度为secondary_alpha，默认值60
+                            this_timeline['Am'+str(k+1)+'_a']=alpha_timeline_A*secondary_alpha 
                     # 位置时间轴信息
                     this_timeline['Am'+str(k+1)+'_p'] = pos_timeline_A
     
                 # 针对文本内容的警告
                 try:
                     this_line_limit = eval(this_timeline['Bb'][0]+'.MainText.line_limit') #获取行长，用来展示各类警告信息
+                    if (len(ts)>this_line_limit*4) | (len(ts.split('#'))>4): #行数过多的警告
+                        print('[33m[warning]:[0m','More than 4 lines will be displayed in dialogue line ' + str(i+1)+'.')
+                    if ((ts[0]=='^')|('#' in ts))&(np.frompyfunc(len,1,1)(ts.replace('^','').split('#')).max()>this_line_limit): # 手动换行的字数超限的警告
+                        print('[33m[warning]:[0m','Manual break line length exceed the Bubble line_limit in dialogue line ' + str(i+1)+'.') #alpha1.6.3
+                except AttributeError: # 'NoneType' object has no attribute 'line_limit'
+                    raise ParserError('[31m[ParserError]:[0m','Main_Text of "{0}" is None!'.format(this_timeline['Bb'][0]))
                 except NameError as E: # 指定的bb没有定义！
                     raise ParserError('[31m[ParserError]:[0m',E,', which is specified to',name+subtype,'as Bubble!')
-                if (len(ts)>this_line_limit*4) | (len(ts.split('#'))>4): #行数过多的警告
-                    print('[33m[warning]:[0m','More than 4 lines will be displayed in dialogue line ' + str(i+1)+'.')
-                if ((ts[0]=='^')|('#' in ts))&(np.frompyfunc(len,1,1)(ts.replace('^','').split('#')).max()>this_line_limit): # 手动换行的字数超限的警告
-                    print('[33m[warning]:[0m','Manual break line length exceed the Bubble line_limit in dialogue line ' + str(i+1)+'.') #alpha1.6.3
                 # 文字显示的参数
                 if text_method == 'all':
                     if text_dur == 0:
@@ -903,7 +917,7 @@ def parser(stdin_text):
                 for sound in this_sound: #this_sound = ['{SE_obj;30}','{SE_obj;30}']
                     try:
                         se_obj,delay = sound[1:-1].split(';')#sound = '{SE_obj;30}'
-                    except: # #sound = '{SE_obj}'
+                    except Exception: # #sound = '{SE_obj}'
                         delay = '0'
                         se_obj = sound[1:-1] # 去掉花括号
                     if delay == '':
@@ -924,7 +938,7 @@ def parser(stdin_text):
                         pass
                     else:
                         raise ParserError('[31m[ParserError]:[0m The sound effect "'+se_obj+'" specified in dialogue line ' + str(i+1)+' is not exist!')
-                    
+                this_timeline['section'] = i
                 render_timeline.append(this_timeline)
                 break_point[i+1]=break_point[i]+this_duration
                 continue
@@ -974,6 +988,7 @@ def parser(stdin_text):
                 else:
                     raise ParserError('[31m[ParserError]:[0m Unrecognized switch method: "'+method+'" appeared in background line ' + str(i+1)+'.')
                 this_background = next_background #正式切换背景
+                this_timeline['section'] = i
                 render_timeline.append(this_timeline)
                 break_point[i+1]=break_point[i]+len(this_timeline.index)
                 continue
@@ -985,17 +1000,17 @@ def parser(stdin_text):
         elif ('<set:' in text) & ('>:' in text):
             try:
                 target,args = get_seting_arg(text)
-                if target in ['speech_speed','am_method_default','am_dur_default','bb_method_default','bb_dur_default','bg_method_default','bg_dur_default','tx_method_default','tx_dur_default','asterisk_pause']:
-                    try: #如果args是整数值型
-                        test = int(args)
-                        if test < 0:
-                            print('[33m[warning]:[0m','Setting',target,'to invalid value',test,',the argument will not changed.')
-                            test = eval(target) # 保持原数值不变
-                        #print("global {0} ; {0} = {1}".format(target,str(test)))
-                        exec("global {0} ; {0} = {1}".format(target,str(test)))
-                    except: #否则当作文本型
-                        #print("global {0} ; {0} = {1}".format(target,'\"'+args+'\"'))
-                        exec("global {0} ; {0} = {1}".format(target,'\"'+args+'\"'))
+                if target in ['am_dur_default','bb_dur_default','bg_dur_default','tx_dur_default','speech_speed','asterisk_pause','secondary_alpha']:
+                    try: 
+                        args = int(args) #如果args是整数值型
+                        if args < 0:
+                            raise ParserError('invalid args')
+                    except Exception:
+                        print('[33m[warning]:[0m','Setting',target,'to invalid value',args,',the argument will not changed.')
+                        args = eval(target) # 保持原数值不变
+                    exec("global {0} ; {0} = {1}".format(target,str(args)))
+                elif target in ['am_method_default','bb_method_default','bg_method_default','tx_method_default']:
+                    exec("global {0} ; {0} = {1}".format(target,'\"'+args+'\"')) # 当作文本型，无论是啥都接受
                 elif target == 'BGM':
                     if args in media_list:
                         BGM_queue.append(args)
@@ -1013,7 +1028,7 @@ def parser(stdin_text):
                             formula = eval(args)
                             print('[33m[warning]:[0m','Using lambda formula range ',formula(0,1,2),
                                   ' in line',str(i+1),', which may cause unstableness during displaying!')                            
-                        except:
+                        except Exception:
                             raise ParserError('[31m[ParserError]:[0m Unsupported formula "'+args+'" is specified in setting line ' + str(i+1)+'.')
                     else:
                         raise ParserError('[31m[ParserError]:[0m Unsupported formula "'+args+'" is specified in setting line ' + str(i+1)+'.')
@@ -1086,6 +1101,7 @@ def parser(stdin_text):
                 # 收尾
                 if BGM_queue != []:
                     this_timeline.loc[0,'BGM'] = BGM_queue.pop() #从BGM_queue里取出来一个 alpha 1.8.5
+                this_timeline['section'] = i
                 render_timeline.append(this_timeline)
                 break_point[i+1]=break_point[i]+len(this_timeline.index)
                 continue
@@ -1131,7 +1147,7 @@ def parser(stdin_text):
                 # 1
                 this_timeline['Am2'] = np.hstack([np.repeat(Auto_media_name+'_1',int(frame_rate*2.5)),np.repeat('NA',frame_rate*5-int(frame_rate*2.5))]) # 2.5s
                 this_timeline['Am2_a'] = np.hstack([formula(0,100,frame_rate//2),
-                                                    np.ones(int(frame_rate*2.5)-2*(frame_rate//2))*100, # v1.0.0
+                                                    np.ones(int(frame_rate*2.5)-2*(frame_rate//2))*100,
                                                     formula(100,0,frame_rate//2),
                                                     np.zeros(frame_rate*5-int(frame_rate*2.5))])
                 this_timeline['Am2_t'] = np.hstack([np.arange(0,int(frame_rate*2.5)),np.zeros(frame_rate*5-int(frame_rate*2.5))])
@@ -1149,6 +1165,7 @@ def parser(stdin_text):
                 # 收尾
                 if BGM_queue != []:
                     this_timeline.loc[0,'BGM'] = BGM_queue.pop() #从BGM_queue里取出来一个 alpha 1.8.5
+                this_timeline['section'] = i
                 render_timeline.append(this_timeline)
                 break_point[i+1]=break_point[i]+len(this_timeline.index)
                 continue
@@ -1169,6 +1186,7 @@ def parser(stdin_text):
     timeline_diff.loc[0]='NA' #再把第0帧设置为NA
     dropframe = (render_timeline == timeline_diff.sort_index()).all(axis=1) # 这样，就是原来的第10帧和第9帧在比较了
     bulitin_media = pd.Series(bulitin_media,dtype=str)
+    break_point = break_point.astype(int) # breakpoint 数据类型改为整数
     # 这样就去掉了，和前一帧相同的帧，节约了性能
     return render_timeline[dropframe == False].copy(),break_point,bulitin_media
 
@@ -1241,7 +1259,7 @@ def get_l2l(ts,text_dur,this_duration): #如果是手动换行的列
     try:
         wc_list.append(np.ones(this_duration - (len(ts)-x)*text_dur)*len(ts)) #this_duration > est # 1.6.1 update
         word_count_timeline = np.hstack(wc_list)
-    except: 
+    except Exception: 
         word_count_timeline = np.hstack(wc_list) # this_duration < est
         word_count_timeline = word_count_timeline[0:this_duration]
     return word_count_timeline.astype(int)
@@ -1279,22 +1297,27 @@ if synthfirst == True:
     command = command.format(lg = stdin_log.replace('\\','/'),md = media_obj.replace('\\','/'), of = output_path, ct = char_tab.replace('\\','/'), AK = AKID,AS = AKKEY,AP = APPKEY)
     print('[replay generator]: Flag --SynthesisAnyway detected, running command:\n'+'[32m'+command+'[0m')
     try:
-        os.system(command)
-        # 将当前的标准输入调整为处理后的log文件
-        if os.path.isfile(output_path+'/AsteriskMarkedLogFile.txt') == True:
+        exit_status = os.system(command)
+        # 如果是正常退出，将当前的标准输入调整为处理后的log文件
+        if (exit_status == 0)&(os.path.isfile(output_path+'/AsteriskMarkedLogFile.txt') == True):
             stdin_log = output_path+'/AsteriskMarkedLogFile.txt'
         else:
             raise OSError('Exception above')
-        # 
     except Exception as E:
         print('[33m[warning]:[0m Failed to synthesis speech, due to:',E)
 
 # 载入od文件
 print('[replay generator]: Loading media definition file.')
-object_define_text = open(media_obj,'r',encoding='utf-8').read().split('\n')
-if object_define_text[0][0] == '\ufeff': # 139 debug
+
+try:
+    object_define_text = open(media_obj,'r',encoding='utf-8').read()#.split('\n') # 修改后的逻辑
+except UnicodeDecodeError as E:
+    print('[31m[DecodeError]:[0m',E)
+    system_terminated('Error')
+if object_define_text[0] == '\ufeff': # UTF-8 BOM
     print('[33m[warning]:[0m','UTF8 BOM recognized in MediaDef, it will be drop from the begin of file!')
-    object_define_text[0] = object_define_text[0][1:]
+    object_define_text = object_define_text[1:] # 去掉首位
+object_define_text = object_define_text.split('\n')
 
 media_list=[]
 for i,text in enumerate(object_define_text):
@@ -1320,10 +1343,10 @@ black = Background('black')
 white = Background('white')
 media_list.append('black')
 media_list.append('white')
-#print(media_list)
 
 # 载入ct文件
 print('[replay generator]: Loading charactor table.')
+
 try:
     if char_tab.split('.')[-1] in ['xlsx','xls']:
         charactor_table = pd.read_excel(char_tab,dtype = str) # 支持excel格式的角色配置表
@@ -1338,14 +1361,16 @@ except Exception as E:
 
 # 载入log文件 parser()
 print('[replay generator]: Parsing Log file.')
+
 try:
-    stdin_text = open(stdin_log,'r',encoding='utf8').read().split('\n')
+    stdin_text = open(stdin_log,'r',encoding='utf8').read()#.split('\n')
 except UnicodeDecodeError as E:
     print('[31m[DecodeError]:[0m',E)
     system_terminated('Error')
-if stdin_text[0][0] == '\ufeff': # 139 debug
+if stdin_text[0] == '\ufeff': # 139 debug # 除非是完全空白的文件
     print('[33m[warning]:[0m','UTF8 BOM recognized in Logfile, it will be drop from the begin of file!')
-    stdin_text[0] = stdin_text[0][1:]
+    stdin_text = stdin_text[1:]
+stdin_text = stdin_text.split('\n')
 try:
     render_timeline,break_point,bulitin_media = parser(stdin_text)
 except ParserError as E:
@@ -1366,7 +1391,9 @@ if output_path != None:
                                  fps = frame_rate, wd = screen_size[0], he = screen_size[1], zd = ','.join(zorder))
         print('[replay generator]: Flag --ExportXML detected, running command:\n'+'[32m'+command+'[0m')
         try:
-            os.system(command)
+            exit_status = os.system(command)
+            if exit_status != 0:
+                raise OSError('Major error occurred in export_xml!')
         except Exception as E:
             print('[33m[warning]:[0m Failed to export XML, due to:',E)
     if exportVideo == True:
@@ -1376,7 +1403,9 @@ if output_path != None:
                                  fps = frame_rate, wd = screen_size[0], he = screen_size[1], zd = ','.join(zorder),ql = crf)
         print('[replay generator]: Flag --ExportVideo detected, running command:\n'+'[32m'+command+'[0m')
         try:
-            os.system(command)
+            exit_status = os.system(command)
+            if exit_status != 0:
+                raise OSError('Major error occurred in export_video!')
         except Exception as E:
             print('[33m[warning]:[0m Failed to export Video, due to:',E)
         system_terminated('Video') # 如果导出为视频，则提前终止程序
@@ -1387,13 +1416,14 @@ if fixscreen == True:
     try:
         import ctypes
         ctypes.windll.user32.SetProcessDPIAware() #修复错误的缩放，尤其是在移动设备。
-    except:
+    except Exception:
         print('[33m[warning]:[0m OS exception, --FixScreenZoom is only avaliable on windows system!')
 
 pygame.init()
 pygame.display.set_caption('TRPG Replay Generator '+edtion)
 fps_clock=pygame.time.Clock()
 screen = pygame.display.set_mode(screen_size)
+pygame.display.set_icon(pygame.image.load('./media/icon.ico'))
 note_text = pygame.freetype.Font('./media/SourceHanSansCN-Regular.otf')
 
 # 建立音频轨道
@@ -1437,6 +1467,12 @@ for s in np.arange(5,0,-1):
 # 主循环
 n=0
 forward = 1 #forward==0代表暂停
+show_detail_info = 0 # show_detail_info == 1代表显示详细信息
+detail_info = {0:"Project: Resolution: {0}x{1} ; FrameRate: {2} fps;".format(W,H,frame_rate),
+               1:"Render Speed: {0} fps",
+               2:"Frame: {0}/"+str(break_point.max())+" ; Section: {1}/"+str(len(break_point)),
+               3:"Command: {0}"}
+resize_screen = 0 # 是否要强制缩小整个演示窗体
 while n < break_point.max():
     ct = time.time()
     try:
@@ -1461,17 +1497,42 @@ while n < break_point.max():
                     n=break_point[(break_point-n)>0].min()
                     stop_SE()
                     continue
+                elif event.key == pygame.K_F11: # 调整缩放一半
+                    from pygame._sdl2.video import Window
+                    window = Window.from_display_module()
+                    resize_screen = 1 - resize_screen
+                    if resize_screen == 1:
+                        screen_resized = pygame.display.set_mode((W//2,H//2))
+                        screen = pygame.Surface(screen_size,pygame.SRCALPHA)
+                        window.position = (100,100)
+                    else:
+                        screen = pygame.display.set_mode(screen_size)
+                        window.position = (0,0)
+                    pygame.display.update()
+                elif event.key == pygame.K_F5: # 详细信息
+                    show_detail_info = 1 - show_detail_info # 1->0 0->1
                 elif event.key == pygame.K_SPACE: #暂停
                     forward = 1 - forward # 1->0 0->1
                     pause_SE(forward) # 0:pause,1:unpause
-
+                else:
+                    pass
         if n in render_timeline.index:
             this_frame = render_timeline.loc[n]
             render(this_frame)
-            if forward == 1:
-                screen.blit(note_text.render('%d'%(1//(time.time()-ct+1e-4)),fgcolor=(100,255,100,255),size=0.0278*H)[0],(10,10)) ##render rate +1e-4 to avoid float divmod()
-            else:
-                screen.blit(note_text.render('Press space to continue.',fgcolor=(100,255,100,255),size=0.0278*H)[0],(0.410*W,0.926*H)) # pause
+            if forward == 1: # 如果正在播放
+                # 显示详情模式
+                if show_detail_info == 1:
+                    screen.blit(note_text.render(detail_info[0],fgcolor=cmap['notetext'],size=0.0185*H)[0],(10,10))
+                    screen.blit(note_text.render(detail_info[1].format(int(1/(time.time()-ct+1e-4))),fgcolor=cmap['notetext'],size=0.0185*H)[0],(10,10+0.0333*H))
+                    screen.blit(note_text.render(detail_info[2].format(n,this_frame['section']+1),fgcolor=cmap['notetext'],size=0.0185*H)[0],(10,10+0.0666*H))
+                    screen.blit(note_text.render(detail_info[3].format(stdin_text[this_frame['section']]),fgcolor=cmap['notetext'],size=0.0185*H)[0],(10,10+0.1*H))
+                # 仅显示帧率
+                else:
+                    screen.blit(note_text.render('%d'%(1//(time.time()-ct+1e-4)),fgcolor=cmap['notetext'],size=0.0278*H)[0],(10,10)) ##render rate +1e-4 to avoid float divmod()
+            else: # 如果正在暂停
+                screen.blit(note_text.render('Press space to continue.',fgcolor=cmap['notetext'],size=0.0278*H)[0],(0.410*W,0.926*H)) # pause
+            if resize_screen == 1: # 如果缩放到一半大小
+                screen_resized.blit(pygame.transform.scale(screen,(W//2,H//2)),(0,0))
         else:
             pass # 节约算力
         pygame.display.update()

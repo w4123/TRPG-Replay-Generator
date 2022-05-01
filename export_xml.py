@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-edtion = 'version 1.0.0'
+edtion = 'version 1.0.1'
 
 # 外部参数输入
 
@@ -42,7 +42,7 @@ try:
     elif os.path.isdir(output_path) == False:
         try:
             os.makedirs(output_path)
-        except:
+        except Exception:
             raise OSError("[31m[SystemError]:[0m Cannot make directory "+output_path)
     output_path = output_path.replace('\\','/')
 
@@ -58,7 +58,7 @@ try:
         print("[33m[warning]:[0m",'Resolution is set to more than 3M, which may cause lag in the display!')
 except Exception as E:
     print(E)
-    sys.exit()
+    sys.exit(1)
 
 # 包导入
 
@@ -85,7 +85,7 @@ class Text:
         self.fontpath = fontfile
     def render(self,tx):
         font_this = ImageFont.truetype(self.fontpath, self.size)
-        text_this = Image.new(mode='RGBA',size=(self.size*(len(tx)+1),self.size*2),color=(0,0,0,0)) # 画布贪婪为2x高度，+1宽度
+        text_this = Image.new(mode='RGBA',size=(self.size*int(len(tx)*1.5),self.size*2),color=(0,0,0,0)) # 画布贪婪为2x高度，1.5*宽度
         draw_this = ImageDraw.Draw(text_this)
         draw_this.text((0,0),tx,font = font_this,align ="left",fill = self.color)
         return text_this
@@ -112,7 +112,7 @@ class StrokeText(Text):
         self.edge_color=edge_color
     def render(self,tx):
         font_this = ImageFont.truetype(self.fontpath, self.size)
-        text_this = Image.new(mode='RGBA',size=(self.size*(len(tx)+1),self.size*2),color=(0,0,0,0)) # 画布贪婪为2x高度，+1宽度
+        text_this = Image.new(mode='RGBA',size=(self.size*int(len(tx)*1.5),self.size*2),color=(0,0,0,0)) # 画布贪婪为2x高度，1.5*宽度
         draw_this = ImageDraw.Draw(text_this)
         for pos in [(0,0),(0,1),(0,2),(1,0),(1,2),(2,0),(2,1),(2,2)]:
             draw_this.text(pos,tx,font = font_this,align ="left",fill = self.edge_color)
@@ -540,23 +540,26 @@ def get_audio_length(filepath):
     return this_audio.get_length()
 
 # 重格式化路径
-def reformat_path(path):#only use for windows path format
-    cwd = os.getcwd().replace('\\','/')
-    if path[0] == '/': #unix正斜杠，报错
-        raise ValueError('invalid path type')
+def reformat_path(path): # alpha 1.9.5 支持unix文件系统路径
+    # 获取绝对路径
+    path = os.path.abspath(path)
+    # 检查非法符号
     if '\\' in path: #是不是反斜杠？
         path = path.replace('\\','/') 
     if ('&' in path)|('<' in path)|('>' in path):
         path = path.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;') # aplha1.7.2 xml 转移的bug
     if ('"' in path)|("'" in path):
         path = path.replace('"','&quot;').replace("'",'&apos;')
-    if path[0] == '.':#是不是./123/型
-        path = cwd + path[1:]
-    if path[0:2] not in ['C:','D:','E:','F:','G:','H:']: #是不是123/型
-        path = cwd + '/' + path
-    disk_label = path[0]
-    path = path.replace('//','/')
-    return 'file://localhost/' + disk_label + '%3a' + path[path.find('/'):]
+    if '//' in path:
+        path = path.replace('//','/')
+    # 判断文件系统
+    if path[0] == '/': #unix file system
+        return 'file://localhost' + path
+    elif (path[0].isalpha()) & (path[1]==':'): # windows disklabel
+        path = path.replace(':','%3a') # 替换冒号
+        return 'file://localhost/' + path
+    else:
+        raise ValueError('invalid path type')
 
 # 处理bg 和 am 的parser
 def parse_timeline(layer):
@@ -646,15 +649,20 @@ break_point = pd.read_pickle(stdin_log.replace('timeline','breakpoint'))
 bulitin_media = pd.read_pickle(stdin_log.replace('timeline','bulitinmedia'))
 
 def main():
-    # 载入od文件
     global media_list
     print('[export XML]: Welcome to use exportXML for TRPG-replay-generator '+edtion)
     print('[export XML]: The output xml file and refered png files will be saved at "'+output_path+'"')
 
-    object_define_text = open(media_obj,'r',encoding='utf-8').read().split('\n')
-    if object_define_text[0][0] == '\ufeff': # 139 debug
+    # 载入od文件
+    try:
+        object_define_text = open(media_obj,'r',encoding='utf-8').read()#.split('\n')
+    except UnicodeDecodeError as E:
+        print('[31m[DecodeError]:[0m',E)
+        sys.exit(1)
+    if object_define_text[0] == '\ufeff': # 139 debug
         print('[33m[warning]:[0m','UTF8 BOM recognized in MediaDef, it will be drop from the begin of file!')
-        object_define_text[0] = object_define_text[0][1:]
+        object_define_text = object_define_text[1:]
+    object_define_text = object_define_text.split('\n')
 
     media_list=[]
     for i,text in enumerate(object_define_text):
@@ -674,7 +682,7 @@ def main():
                 media_list.append(obj_name) #记录新增对象名称
             except Exception as E:
                 print('[31m[SyntaxError]:[0m "'+text+'" appeared in media define file line ' + str(i+1)+' is invalid syntax:',E)
-                sys.exit()
+                sys.exit(1)
     black = Background('black')
     white = Background('white')
     media_list.append('black')
@@ -733,6 +741,6 @@ def main():
     ofile = open(output_path+'/'+stdin_name+'.xml','w',encoding='utf-8')
     ofile.write(main_output)
     ofile.close()
-    print('[export XML]: Done!')
+    print('[export XML]: Done! XML path : '+output_path+'/'+stdin_name+'.xml')
 if __name__ == '__main__':
     main()

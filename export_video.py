@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-edtion = 'version 1.0.0'
+edtion = 'version 1.0.1'
 
 # 外部参数输入
 
@@ -46,7 +46,7 @@ try:
     elif os.path.isdir(output_path) == False:
         try:
             os.makedirs(output_path)
-        except:
+        except Exception:
             raise OSError("[31m[SystemError]:[0m Cannot make directory "+output_path)
     output_path = output_path.replace('\\','/')
 
@@ -62,7 +62,7 @@ try:
         print("[33m[warning]:[0m",'Resolution is set to more than 3M, which may cause lag in the display!')
 except Exception as E:
     print(E)
-    sys.exit()
+    sys.exit(1)
 
 import pandas as pd
 import numpy as np
@@ -72,8 +72,6 @@ import pydub
 import time
 import glob # 匹配路径
 import re
-
-# 类定义 alpha 1.8.4
 
 # 文字对象
 class Text:
@@ -90,6 +88,8 @@ class Text:
         return face
     def draw(self,text):
         out_text = []
+        if text == '':
+            return []
         if ('#' in text) | (text[0]=='^'): #如果有手动指定的换行符 # bug:如果手动换行，但是第一个#在30字以外，异常的显示
             if text[0]=='^': # 如果使用^指定的手动换行，则先去掉这个字符。
                 text = text[1:]
@@ -133,9 +133,10 @@ class Bubble:
         self.mt_pos = mt_pos
         self.Header = Header_Text
         self.ht_pos = ht_pos
-        if line_distance > 1:
+        if line_distance >= 1:
             self.line_distance = line_distance
         elif line_distance > 0:
+            self.line_distance = line_distance # alpha 1.9.2 debug 当linedistance低于1时，忘记初始化line_distance这个参数了
             print("[33m[warning]:[0m",'Line distance is set to less than 1!')
         else:
             raise MediaError('[31m[BubbleError]:[0m', 'Invalid line distance:',line_distance)
@@ -553,23 +554,29 @@ def render(this_frame):
 # 被占用的变量名 # 1.7.7
 occupied_variable_name = open('./media/occupied_variable_name.list','r',encoding='utf8').read().split('\n')
 
+# Main():
+
+print('[export Video]: Welcome to use exportVideo for TRPG-replay-generator '+edtion)
+print('[export Video]: The output mp4 file will be saved at "'+output_path+'"')
+
 # 载入timeline 和 breakpoint
 render_timeline = pd.read_pickle(stdin_log)
 break_point = pd.read_pickle(stdin_log.replace('timeline','breakpoint'))
-stdin_name = stdin_log.replace('\\','/').split('/')[-1]
 bulitin_media = pd.read_pickle(stdin_log.replace('timeline','bulitinmedia'))
+stdin_name = stdin_log.replace('\\','/').split('/')[-1]
 
 cmap = {'black':(0,0,0,255),'white':(255,255,255,255),'greenscreen':(0,177,64,255)}
 
 # 载入od文件
-print('[export Video]: Welcome to use exportVideo for TRPG-replay-generator '+edtion)
-print('[export Video]: The output mp4 file will be saved at "'+output_path+'"')
-
-# 载入od文件
-object_define_text = open(media_obj,'r',encoding='utf-8').read().split('\n')
-if object_define_text[0][0] == '\ufeff': # 139 debug
+try:
+    object_define_text = open(media_obj,'r',encoding='utf-8').read()#.split('\n')
+except UnicodeDecodeError as E:
+    print('[31m[DecodeError]:[0m',E)
+    sys.exit(1)
+if object_define_text[0] == '\ufeff': # 139 debug
     print('[33m[warning]:[0m','UTF8 BOM recognized in MediaDef, it will be drop from the begin of file!')
-    object_define_text[0] = object_define_text[0][1:]
+    object_define_text = object_define_text[1:]
+object_define_text = object_define_text.split('\n')
 
 media_list=[]
 for i,text in enumerate(object_define_text):
@@ -589,7 +596,7 @@ for i,text in enumerate(object_define_text):
             media_list.append(obj_name) #记录新增对象名称
         except Exception as E:
             print('[31m[SyntaxError]:[0m "'+text+'" appeared in media define file line ' + str(i+1)+' is invalid syntax:',E)
-            sys.exit()
+            sys.exit(1)
 black = Background('black')
 white = Background('white')
 media_list.append('black')
@@ -652,7 +659,7 @@ for media in media_list:
         exec(media+'.convert()')
     except Exception as E:
         print('[31m[MediaError]:[0m Exception during converting',media,':',E)
-        sys.exit()
+        sys.exit(1)
 
 # ffmpeg输出
 output_engine = (
@@ -684,7 +691,7 @@ while n < break_point.max():
         print('[31m[RenderError]:[0m','Render exception at frame:',n)
         output_engine.stdin.close()
         pygame.quit()
-        sys.exit()
+        sys.exit(1)
     if n%frame_rate == 1:
         finish_rate = n/break_point.values.max()
         print('[export Video]:','[{0}] {1},\t{2}'.format(int(finish_rate*50)*'#'+(50-int(50*finish_rate))*' ',
@@ -703,4 +710,4 @@ print('[export Video]: Export time elapsed : '+time.strftime("%H:%M:%S", time.gm
 print('[export Video]: Mean frames rendered per second : '+'%.2f'%(break_point.max()/used_time)+' FPS')
 print('[export Video]: Encoding finished! Video path :',output_path+'/'+stdin_name+'.mp4')
 
-sys.exit()
+sys.exit(0)
