@@ -1,6 +1,3 @@
-AKID
-AKKEY
-APPKEY
 Animation
 Audio
 Audio_type
@@ -10,6 +7,7 @@ Background
 Bubble
 BuiltInAnimation
 E
+Exception
 H
 Image
 ImageDraw
@@ -206,6 +204,7 @@ used_variable_name
 values
 video_tracks
 voice
+voice_lib
 webbrowser
 white
 window

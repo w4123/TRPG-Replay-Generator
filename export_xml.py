@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-edtion = 'version 1.0.1'
+edtion = 'version 1.0.2'
 
 # 外部参数输入
 
@@ -66,7 +66,6 @@ import pandas as pd
 import numpy as np
 from PIL import Image,ImageFont,ImageDraw
 import re
-import time #开发模式，显示渲染帧率
 from pygame import mixer
 import glob # 匹配路径
 
@@ -78,11 +77,12 @@ clip_index = 0
 file_index = 0
 
 class Text:
-    def __init__(self,fontfile='./media/SourceHanSansCN-Regular.otf',fontsize=40,color=(0,0,0,255),line_limit=20):
+    def __init__(self,fontfile='./media/SourceHanSansCN-Regular.otf',fontsize=40,color=(0,0,0,255),line_limit=20,label_color='Lavender'):
         self.color=color
         self.size=fontsize
         self.line_limit = line_limit
         self.fontpath = fontfile
+        self.label_color = label_color
     def render(self,tx):
         font_this = ImageFont.truetype(self.fontpath, self.size)
         text_this = Image.new(mode='RGBA',size=(self.size*int(len(tx)*1.5),self.size*2),color=(0,0,0,0)) # 画布贪婪为2x高度，1.5*宽度
@@ -107,8 +107,8 @@ class Text:
         pass
 
 class StrokeText(Text):
-    def __init__(self,fontfile='./media/SourceHanSansCN-Regular.otf',fontsize=40,color=(0,0,0,255),line_limit=20,edge_color=(255,255,255,255)):
-        super().__init__(fontfile=fontfile,fontsize=fontsize,color=color,line_limit=line_limit) # 继承
+    def __init__(self,fontfile='./media/SourceHanSansCN-Regular.otf',fontsize=40,color=(0,0,0,255),line_limit=20,edge_color=(255,255,255,255),label_color='Lavender'):
+        super().__init__(fontfile=fontfile,fontsize=fontsize,color=color,line_limit=line_limit,label_color=label_color) # 继承
         self.edge_color=edge_color
     def render(self,tx):
         font_this = ImageFont.truetype(self.fontpath, self.size)
@@ -121,7 +121,7 @@ class StrokeText(Text):
 
     # 对话框、气泡、文本框
 class Bubble:
-    def __init__(self,filepath,Main_Text=Text(),Header_Text=None,pos=(0,0),mt_pos=(0,0),ht_pos=(0,0),align='left',line_distance=1.5):
+    def __init__(self,filepath,Main_Text=Text(),Header_Text=None,pos=(0,0),mt_pos=(0,0),ht_pos=(0,0),align='left',line_distance=1.5,label_color='Lavender'):
         global file_index
         self.path = reformat_path(filepath)
         self.MainText = Main_Text
@@ -135,6 +135,7 @@ class Bubble:
         self.fileindex = 'BBfile_' + '%d'% file_index
         self.PRpos = PR_center_arg(np.array(self.size),np.array(self.pos))
         self.align = align
+        self.label_color = label_color
         file_index = file_index+1
     def display(self,begin,end,text,header=''): # 这段代码是完全没有可读性的屎，但是确实可运行，非必要不要改
         global outtext_index,clip_tplt,clip_index
@@ -169,7 +170,7 @@ class Bubble:
         width,height = self.size
         pr_horiz,pr_vert = self.PRpos
         clip_bubble = clip_tplt.format(**{'clipid':'BB_clip_%d'%clip_index,
-                              'clipname':'BB_clip_%d'%clip_index,
+                              'clipname':self.filename,
                               'timebase':'%d'%frame_rate,
                               'ntsc':Is_NTSC,
                               'start':'%d'%begin,
@@ -182,9 +183,10 @@ class Bubble:
                               'filewidth':'%d'%width,
                               'fileheight':'%d'%height,
                               'horiz':'%.5f'%pr_horiz,
-                              'vert':'%.5f'%pr_vert})
+                              'vert':'%.5f'%pr_vert,
+                              'colorlabel':self.label_color})
         clip_text = clip_tplt.format(**{'clipid':'TX_clip_%d'%clip_index,
-                              'clipname':'TX_clip_%d'%clip_index,
+                              'clipname':'auto_TX_%d.png'%outtext_index,
                               'timebase':'%d'%frame_rate,
                               'ntsc':Is_NTSC,
                               'start':'%d'%begin,
@@ -197,7 +199,8 @@ class Bubble:
                               'filewidth':'%d'%width,
                               'fileheight':'%d'%height,
                               'horiz':'%.5f'%pr_horiz,
-                              'vert':'%.5f'%pr_vert})
+                              'vert':'%.5f'%pr_vert,
+                              'colorlabel':self.MainText.label_color})
 
         outtext_index = outtext_index + 1
         clip_index = clip_index+1
@@ -208,7 +211,7 @@ class Bubble:
 
 # 背景图片
 class Background:
-    def __init__(self,filepath,pos = (0,0)):
+    def __init__(self,filepath,pos = (0,0),label_color='Lavender'):
         global file_index 
         if filepath in cmap.keys(): #对纯色定义的背景的支持
             ofile = output_path+'/auto_BG_'+filepath+'.png'
@@ -222,13 +225,14 @@ class Background:
         self.PRpos = PR_center_arg(np.array(self.size),np.array(self.pos))
         self.filename = self.path.split('/')[-1]
         self.fileindex = 'BGfile_%d'% file_index
+        self.label_color = label_color
         file_index = file_index+1
     def display(self,begin,end):
         global clip_tplt,clip_index
         width,height = self.size
         pr_horiz,pr_vert = self.PRpos
         clip_this = clip_tplt.format(**{'clipid':'BG_clip_%d'%clip_index,
-                              'clipname':'BG_clip_%d'%clip_index,
+                              'clipname':self.filename,
                               'timebase':'%d'%frame_rate,
                               'ntsc':Is_NTSC,
                               'start':'%d'%begin,
@@ -241,7 +245,8 @@ class Background:
                               'filewidth':'%d'%width,
                               'fileheight':'%d'%height,
                               'horiz':'%.5f'%pr_horiz,
-                              'vert':'%.5f'%pr_vert})
+                              'vert':'%.5f'%pr_vert,
+                              'colorlabel':self.label_color})
         clip_index = clip_index+1
         return clip_this
     def convert(self):
@@ -249,7 +254,7 @@ class Background:
 
 # 立绘图片
 class Animation:
-    def __init__(self,filepath,pos = (0,0),tick=1,loop=True):
+    def __init__(self,filepath,pos = (0,0),tick=1,loop=True,label_color='Lavender'):
         global file_index 
         self.path = reformat_path(glob.glob(filepath)[0]) # 兼容动画Animation，只使用第一帧！
         self.pos = pos
@@ -257,13 +262,14 @@ class Animation:
         self.filename = self.path.split('/')[-1]
         self.fileindex = 'AMfile_%d'% file_index
         self.PRpos = PR_center_arg(np.array(self.size),np.array(self.pos))
+        self.label_color = label_color
         file_index = file_index+1
     def display(self,begin,end):
         global clip_tplt,clip_index
         width,height = self.size
         pr_horiz,pr_vert = self.PRpos
         clip_this = clip_tplt.format(**{'clipid':'AM_clip_%d'%clip_index,
-                              'clipname':'AM_clip_%d'%clip_index,
+                              'clipname':self.filename,
                               'timebase':'%d'%frame_rate,
                               'ntsc':Is_NTSC,
                               'start':'%d'%begin,
@@ -276,7 +282,8 @@ class Animation:
                               'filewidth':'%d'%width,
                               'fileheight':'%d'%height,
                               'horiz':'%.5f'%pr_horiz,
-                              'vert':'%.5f'%pr_vert})
+                              'vert':'%.5f'%pr_vert,
+                              'colorlabel':self.label_color})
         clip_index = clip_index+1
         return clip_this
     def convert(self):
@@ -284,8 +291,9 @@ class Animation:
 
 # a1.6.5 内建动画，这是一个Animation类的子类，重构了构造函数
 class BuiltInAnimation(Animation):
-    def __init__(self,anime_type='hitpoint',anime_args=('0',0,0,0),screensize = (1920,1080),layer=0):
+    def __init__(self,anime_type='hitpoint',anime_args=('0',0,0,0),screensize = (1920,1080),layer=0,label_color='Mango'):
         global file_index,outanime_index
+        self.label_color = label_color
         if anime_type == 'hitpoint':
             # 载入图片
             heart = Image.open('./media/heart.png')
@@ -398,7 +406,7 @@ class BuiltInAnimation(Animation):
                     dice_max,dice_face,dice_check = map(lambda x:-1 if x=='NA' else int(x),(dice_max,dice_face,dice_check))
                 except ValueError as E: #too many values to unpack,not enough values to unpack
                     raise MediaError('[BIAnimeError]:','Invalid syntax:',str(die),E)
-                if (dice_face>dice_max)|(dice_check<-1)|(dice_check>dice_max)|(dice_face<=0)|(dice_max<=0):
+                if (dice_face>dice_max)|(dice_check<-1)|(dice_check>dice_max)|(dice_face<0)|(dice_max<=0):
                     raise MediaError('[BIAnimeError]:','Invalid argument',name_tx,dice_max,dice_check,dice_face,'for BIAnime dice!')
             N_dice = len(anime_args)
             if N_dice > 4:
@@ -480,19 +488,20 @@ class BuiltInAnimation(Animation):
             
 # 音效
 class Audio:
-    def __init__(self,filepath):
+    def __init__(self,filepath,label_color='Caribbean'):
         global file_index 
         self.path = reformat_path(filepath)
         self.length = get_audio_length(filepath)*frame_rate
         self.filename = self.path.split('/')[-1]
         self.fileindex = 'AUfile_%d'% file_index
+        self.label_color = label_color
         file_index = file_index+1
         
     def display(self,begin):
         global audio_clip_tplt,clip_index
         clip_this = audio_clip_tplt.format(**{'clipid':'AU_clip_%d'%clip_index,
                                               'type':Audio_type,
-                                              'clipname':'AU_clip_%d'%clip_index,
+                                              'clipname':self.filename,
                                               'audiolen':'%d'%self.length,
                                               'timebase':'%d'%frame_rate,
                                               'ntsc':Is_NTSC,
@@ -502,7 +511,8 @@ class Audio:
                                               'out':'%d'%self.length,
                                               'fileid':self.fileindex,
                                               'filename':self.filename,
-                                              'filepath':self.path})
+                                              'filepath':self.path,
+                                              'colorlabel':self.label_color})
         clip_index = clip_index+1
         return clip_this
     
@@ -511,7 +521,7 @@ class Audio:
 
 # 背景音乐
 class BGM:
-    def __init__(self,filepath,volume=100,loop=True):
+    def __init__(self,filepath,volume=100,loop=True,label_color='Forest'):
         print('[33m[warning]:[0m BGM '+filepath+' is automatically ignored, you should add BGM manually in Premiere Pro later.')
     def convert(self):
         pass

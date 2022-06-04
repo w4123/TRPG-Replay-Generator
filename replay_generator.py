@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-edtion = 'version 1.0.1'
+edtion = 'alpha 1.11.8'
 
 # 外部参数输入
 
@@ -24,6 +24,9 @@ ap.add_argument("-Z", "--Zorder", help='Set the display order of layers, not rec
 ap.add_argument("-K", "--AccessKey", help='Your AccessKey, to use with --SynthsisAnyway',type=str,default="Your_AccessKey")
 ap.add_argument("-S", "--AccessKeySecret", help='Your AccessKeySecret, to use with --SynthsisAnyway',type=str,default="Your_AccessKey_Secret")
 ap.add_argument("-A", "--Appkey", help='Your Appkey, to use with --SynthsisAnyway',type=str,default="Your_Appkey")
+ap.add_argument("-U", "--Azurekey", help='Your Azure TTS key.',type=str,default="Your_Azurekey")
+ap.add_argument("-R", "--ServRegion", help='Service region of Azure.', type=str, default="eastasia")
+
 # 用于导出视频的质量值
 ap.add_argument("-Q", "--Quality", help='Choose the quality (ffmpeg crf) of output video, to use with --ExportVideo.',type=int,default=24)
 # Flags
@@ -55,9 +58,13 @@ screen_size = (args.Width,args.Height) #显示的分辨率
 frame_rate = args.FramePerSecond #帧率 单位fps
 zorder = args.Zorder.split(',') #渲染图层顺序
 
+# 阿里云合成的key
 AKID = args.AccessKey
 AKKEY = args.AccessKeySecret
 APPKEY = args.Appkey
+# Azure合成的key
+AZUKEY = args.Azurekey
+service_region = args.ServRegion
 
 crf = args.Quality # 导出视频的质量值
 
@@ -105,13 +112,12 @@ import re
 import time #开发模式，显示渲染帧率
 import glob # 匹配路径
 
-
-# 类定义 alpha 1.9.6
+# 类定义 alpha 1.11.0
 
 # 文字对象
 class Text:
     pygame.font.init()
-    def __init__(self,fontfile='./media/SourceHanSansCN-Regular.otf',fontsize=40,color=(0,0,0,255),line_limit=20):
+    def __init__(self,fontfile='./media/SourceHanSansCN-Regular.otf',fontsize=40,color=(0,0,0,255),line_limit=20,label_color='Lavender'):
         self.text_render = pygame.font.Font(fontfile,fontsize)
         self.color=color
         self.size=fontsize
@@ -143,8 +149,8 @@ class Text:
 # 描边文本，是Text的子类。注意，使用这个媒体类可能会影响帧率！
 class StrokeText(Text):
     pygame.font.init()
-    def __init__(self,fontfile='./media/SourceHanSansCN-Regular.otf',fontsize=40,color=(0,0,0,255),line_limit=20,edge_color=(255,255,255,255)):
-        super().__init__(fontfile=fontfile,fontsize=fontsize,color=color,line_limit=line_limit) # 继承
+    def __init__(self,fontfile='./media/SourceHanSansCN-Regular.otf',fontsize=40,color=(0,0,0,255),line_limit=20,edge_color=(255,255,255,255),label_color='Lavender'):
+        super().__init__(fontfile=fontfile,fontsize=fontsize,color=color,line_limit=line_limit,label_color=label_color) # 继承
         self.edge_color=edge_color
     def render(self,tx):
         edge = self.text_render.render(tx,True,self.edge_color[0:3])
@@ -161,7 +167,7 @@ class StrokeText(Text):
 
 # 对话框、气泡、文本框
 class Bubble:
-    def __init__(self,filepath,Main_Text=Text(),Header_Text=None,pos=(0,0),mt_pos=(0,0),ht_pos=(0,0),align='left',line_distance=1.5):
+    def __init__(self,filepath,Main_Text=Text(),Header_Text=None,pos=(0,0),mt_pos=(0,0),ht_pos=(0,0),align='left',line_distance=1.5,label_color='Lavender'):
         self.media = pygame.image.load(filepath)
         self.pos = pos
         self.MainText = Main_Text
@@ -203,7 +209,7 @@ class Bubble:
 
 # 背景图片
 class Background:
-    def __init__(self,filepath,pos = (0,0)):
+    def __init__(self,filepath,pos = (0,0),label_color='Lavender'):
         if filepath in cmap.keys(): #添加了，对纯色定义的背景的支持
             self.media = pygame.surface.Surface(screen_size)
             self.media.fill(cmap[filepath])
@@ -227,7 +233,7 @@ class Background:
 
 # 这个是真的动画了，用法和旧版的amination是一样的！
 class Animation:
-    def __init__(self,filepath,pos = (0,0),tick=1,loop=True):
+    def __init__(self,filepath,pos = (0,0),tick=1,loop=True,label_color='Lavender'):
         file_list = np.frompyfunc(lambda x:x.replace('\\','/'),1,1)(glob.glob(filepath))
         self.length = len(file_list)
         if self.length == 0:
@@ -262,7 +268,7 @@ class Animation:
 
 # a1.7.5 内建动画，Animation类的子类
 class BuiltInAnimation(Animation):
-    def __init__(self,anime_type='hitpoint',anime_args=('0',0,0,0),screensize = (1920,1080),layer=0):
+    def __init__(self,anime_type='hitpoint',anime_args=('0',0,0,0),screensize = (1920,1080),layer=0,label_color='Mango'):
         BIA_text = Text('./media/SourceHanSerifSC-Heavy.otf',fontsize=int(0.0521*screensize[0]),color=(255,255,255,255),line_limit=10)
         if anime_type == 'hitpoint': # anime_args=('0',0,0,0)
             # 载入图片
@@ -393,7 +399,7 @@ class BuiltInAnimation(Animation):
                     dice_max,dice_face,dice_check = map(lambda x:-1 if x=='NA' else int(x),(dice_max,dice_face,dice_check))
                 except ValueError as E: #too many values to unpack,not enough values to unpack
                     raise MediaError('[31m[BIAnimeError]:[0m','Invalid syntax:',str(die),E)
-                if (dice_face>dice_max)|(dice_check<-1)|(dice_check>dice_max)|(dice_face<=0)|(dice_max<=0):
+                if (dice_face>dice_max)|(dice_check<-1)|(dice_check>dice_max)|(dice_face<0)|(dice_max<=0):
                     raise MediaError('[31m[BIAnimeError]:[0m','Invalid argument',name_tx,dice_max,dice_check,dice_face,'for BIAnime dice!')
             # 最多4个
             N_dice = len(anime_args)
@@ -488,7 +494,7 @@ class BuiltInAnimation(Animation):
 # 音效
 class Audio:
     pygame.mixer.init()
-    def __init__(self,filepath):
+    def __init__(self,filepath,label_color='Caribbean'):
         self.media = pygame.mixer.Sound(filepath)
     def display(self,channel,volume=100):
         channel.set_volume(volume/100)
@@ -498,7 +504,7 @@ class Audio:
 
 # 背景音乐
 class BGM:
-    def __init__(self,filepath,volume=100,loop=True):
+    def __init__(self,filepath,volume=100,loop=True,label_color='Caribbean'):
         self.media = filepath
         self.volume = volume/100
         if loop == True:
@@ -538,9 +544,10 @@ RE_setting = re.compile('^<set:([\w\_]+)>:(.+)$')
 RE_characor = re.compile('([\w\ ]+)(\(\d*\))?(\.\w+)?')
 RE_modify = re.compile('<(\w+)(=\d+)?>')
 RE_sound = re.compile('({.+?})')
-RE_asterisk = re.compile('(\{([^\{\}]*?[,;])?\*([\w\.\,，。：？！“”]*)?\})') # v 1.8.7 给星标后文本额外增加几个可用的中文符号
+RE_asterisk = re.compile('(\{([^\{\}]*?[;])?\*([\w\ \.\,，。：？！“”]*)?\})') # v 1.11.4 音频框分隔符只能用; *后指定可以有空格
 RE_hitpoint = re.compile('<hitpoint>:\((.+?),(\d+),(\d+),(\d+)\)') # a 1.6.5 血条预设动画
 RE_dice = re.compile('\((.+?),(\d+),([\d]+|NA),(\d+)\)') # a 1.7.5 骰子预设动画，老虎机
+#RE_asterisk = re.compile('(\{([^\{\}]*?[,;])?\*([\w\.\,，。：？！“”]*)?\})') # v 1.8.7 给星标后文本额外增加几个可用的中文符号
 #RE_asterisk = re.compile('(\{([^\{\}]*?[,;])?\*([\w\.\,，]*)?\})') # v 1.7.3 修改匹配模式以匹配任何可能的字符（除了花括号）
 #RE_asterisk = re.compile('\{\w+[;,]\*(\d+\.?\d*)\}') # 这种格式对于{path;*time的}的格式无效！
 #RE_asterisk = re.compile('(\{([\w\.\\\/\'\":]*?[,;])?\*([\w\.\,，]*)?\})') # a 1.4.3 修改了星标的正则（和ss一致）,这种对于有复杂字符的路径无效！
@@ -615,7 +622,10 @@ secondary_alpha = 60 # a 1.8.8 次要立绘的默认透明度
 
 # 解析对话行 []
 def get_dialogue_arg(text):
-    cr,cre,ts,tse,se = RE_dialogue.findall(text)[0]
+    try:
+        cr,cre,ts,tse,se = RE_dialogue.findall(text)[0]
+    except IndexError:
+        raise ParserError("[31m[ParserError]:[0m","Unable to parse as dialogue line, due to invalid syntax!")
     this_duration = int(len(ts)/(speech_speed/60/frame_rate))
     this_charactor = RE_characor.findall(cr)
     # 切换参数
@@ -651,7 +661,10 @@ def get_dialogue_arg(text):
 
 # 解析背景行 <background>
 def get_background_arg(text):
-    bge,bgc = RE_background.findall(text)[0]
+    try:
+        bge,bgc = RE_background.findall(text)[0]
+    except IndexError:
+        raise ParserError("[31m[ParserError]:[0m","Unable to parse as background line, due to invalid syntax!")
     if bge=='':
         bge = bg_method_default
     method,method_dur = RE_modify.findall(bge)[0]
@@ -663,7 +676,10 @@ def get_background_arg(text):
 
 # 解释设置行 <set:>
 def get_seting_arg(text):
-    target,args = RE_setting.findall(text)[0]
+    try:
+        target,args = RE_setting.findall(text)[0]
+    except IndexError:
+        raise ParserError("[31m[ParserError]:[0m","Unable to parse as setting line, due to invalid syntax!")
     return (target,args)
 
 # 截断字符串
@@ -913,10 +929,10 @@ def parser(stdin_text):
                     raise ParserError('[31m[ParserError]:[0m Unrecognized text display method: "'+text_method+'" appeared in dialogue line ' + str(i+1)+'.')
                 #音频信息
                 if BGM_queue != []:
-                    this_timeline.loc[0,'BGM'] = BGM_queue.pop() #从BGM_queue里取出来一个
+                    this_timeline.loc[0,'BGM'] = BGM_queue.pop(0) #从BGM_queue里取出来一个
                 for sound in this_sound: #this_sound = ['{SE_obj;30}','{SE_obj;30}']
                     try:
-                        se_obj,delay = sound[1:-1].split(';')#sound = '{SE_obj;30}'
+                        se_obj,delay = sound[1:-1].split(';')#sound = '{SE_obj;30}'# 由于这个地方，音频框的分隔符号只能用分号
                     except Exception: # #sound = '{SE_obj}'
                         delay = '0'
                         se_obj = sound[1:-1] # 去掉花括号
@@ -1100,7 +1116,7 @@ def parser(stdin_text):
                                                         np.ones(frame_rate*2)*(frame_rate-1)]) # 后两秒静止
                 # 收尾
                 if BGM_queue != []:
-                    this_timeline.loc[0,'BGM'] = BGM_queue.pop() #从BGM_queue里取出来一个 alpha 1.8.5
+                    this_timeline.loc[0,'BGM'] = BGM_queue.pop(0) #从BGM_queue里取出来一个 alpha 1.8.5 # 1.10.
                 this_timeline['section'] = i
                 render_timeline.append(this_timeline)
                 break_point[i+1]=break_point[i]+len(this_timeline.index)
@@ -1164,7 +1180,7 @@ def parser(stdin_text):
                 this_timeline.loc[frame_rate//3,'SE'] = "'./media/SE_dice.wav'"
                 # 收尾
                 if BGM_queue != []:
-                    this_timeline.loc[0,'BGM'] = BGM_queue.pop() #从BGM_queue里取出来一个 alpha 1.8.5
+                    this_timeline.loc[0,'BGM'] = BGM_queue.pop(0) #从BGM_queue里取第一个出来 alpha 1.10.6
                 this_timeline['section'] = i
                 render_timeline.append(this_timeline)
                 break_point[i+1]=break_point[i]+len(this_timeline.index)
@@ -1245,7 +1261,7 @@ def render(this_frame):
                 else:
                     exec('{0}.display(channel={1})'.format(this_frame[key],channel_list[key])) #否则就直接播放对象
             except Exception:
-                raise RuntimeError('[31m[RenderError]:[0m Failed to play audio "'+this_frame[layer]+'"')
+                raise RuntimeError('[31m[RenderError]:[0m Failed to play audio "'+this_frame[key]+'"') # v 1.10.7 debug
     return 1
 # 手动换行的l2l
 def get_l2l(ts,text_dur,this_duration): #如果是手动换行的列
@@ -1293,14 +1309,17 @@ print('[replay generator]: Welcome to use TRPG-replay-generator '+edtion)
 # 检查是否需要先做语音合成
 
 if synthfirst == True:
-    command = python3 +' ./speech_synthesizer.py --LogFile {lg} --MediaObjDefine {md} --CharacterTable {ct} --OutputPath {of} --AccessKey {AK} --AccessKeySecret {AS} --Appkey {AP}'
-    command = command.format(lg = stdin_log.replace('\\','/'),md = media_obj.replace('\\','/'), of = output_path, ct = char_tab.replace('\\','/'), AK = AKID,AS = AKKEY,AP = APPKEY)
+    command = python3 +' ./speech_synthesizer.py --LogFile {lg} --MediaObjDefine {md} --CharacterTable {ct} --OutputPath {of} --AccessKey {AK} --AccessKeySecret {AS} --Appkey {AP} '
+    command = command + '--Azurekey {AZ} --ServRegion {SR}'
+    command = command.format(lg = stdin_log.replace('\\','/'),md = media_obj.replace('\\','/'), of = output_path, ct = char_tab.replace('\\','/'),
+                             AK = AKID,AS = AKKEY,AP = APPKEY,AZ = AZUKEY, SR =service_region)
     print('[replay generator]: Flag --SynthesisAnyway detected, running command:\n'+'[32m'+command+'[0m')
     try:
         exit_status = os.system(command)
+        print('[32m------------------------------------------------------------[0m')
         # 如果是正常退出，将当前的标准输入调整为处理后的log文件
-        if (exit_status == 0)&(os.path.isfile(output_path+'/AsteriskMarkedLogFile.txt') == True):
-            stdin_log = output_path+'/AsteriskMarkedLogFile.txt'
+        if (exit_status == 0)&(os.path.isfile(output_path+'/AsteriskMarkedLogFile.rgl') == True):
+            stdin_log = output_path+'/AsteriskMarkedLogFile.rgl'
         else:
             raise OSError('Exception above')
     except Exception as E:
@@ -1392,6 +1411,7 @@ if output_path != None:
         print('[replay generator]: Flag --ExportXML detected, running command:\n'+'[32m'+command+'[0m')
         try:
             exit_status = os.system(command)
+            print('[32m------------------------------------------------------------[0m')
             if exit_status != 0:
                 raise OSError('Major error occurred in export_xml!')
         except Exception as E:
@@ -1404,6 +1424,7 @@ if output_path != None:
         print('[replay generator]: Flag --ExportVideo detected, running command:\n'+'[32m'+command+'[0m')
         try:
             exit_status = os.system(command)
+            print('[32m------------------------------------------------------------[0m')
             if exit_status != 0:
                 raise OSError('Major error occurred in export_video!')
         except Exception as E:
@@ -1471,7 +1492,12 @@ show_detail_info = 0 # show_detail_info == 1代表显示详细信息
 detail_info = {0:"Project: Resolution: {0}x{1} ; FrameRate: {2} fps;".format(W,H,frame_rate),
                1:"Render Speed: {0} fps",
                2:"Frame: {0}/"+str(break_point.max())+" ; Section: {1}/"+str(len(break_point)),
-               3:"Command: {0}"}
+               3:"Command: {0}",
+               4:"Zorder: {0}".format('>>>'+'>'.join(zorder)+'>>>'),
+               5:"Layer: BG1:{0}; BG2:{1}; BG3:{2}",
+               6:"Layer: Am1:{0}; Am2:{1}; Am3:{2}",
+               7:"Layer: Bb:{0}; HD:{1}; TX:{2}",
+               }
 resize_screen = 0 # 是否要强制缩小整个演示窗体
 while n < break_point.max():
     ct = time.time()
@@ -1486,18 +1512,18 @@ while n < break_point.max():
                     pygame.time.delay(1000)
                     pygame.quit()
                     system_terminated('User')
-                elif event.key == pygame.K_a:
+                elif event.key in [pygame.K_a,pygame.K_LEFT]:
                     n=break_point[(break_point-n)<0].max()
                     n=break_point[(break_point-n)<0].max()
                     if n != n: # 确保不会被a搞崩
                         n = 0
                     stop_SE()
                     continue
-                elif event.key == pygame.K_d:
+                elif event.key in [pygame.K_d,pygame.K_RIGHT]:
                     n=break_point[(break_point-n)>0].min()
                     stop_SE()
                     continue
-                elif event.key == pygame.K_F11: # 调整缩放一半
+                elif event.key in [pygame.K_F11, pygame.K_p]: # 调整缩放一半
                     from pygame._sdl2.video import Window
                     window = Window.from_display_module()
                     resize_screen = 1 - resize_screen
@@ -1509,7 +1535,7 @@ while n < break_point.max():
                         screen = pygame.display.set_mode(screen_size)
                         window.position = (0,0)
                     pygame.display.update()
-                elif event.key == pygame.K_F5: # 详细信息
+                elif event.key in [pygame.K_F5, pygame.K_i]: # 详细信息
                     show_detail_info = 1 - show_detail_info # 1->0 0->1
                 elif event.key == pygame.K_SPACE: #暂停
                     forward = 1 - forward # 1->0 0->1
@@ -1519,19 +1545,24 @@ while n < break_point.max():
         if n in render_timeline.index:
             this_frame = render_timeline.loc[n]
             render(this_frame)
-            if forward == 1: # 如果正在播放
-                # 显示详情模式
-                if show_detail_info == 1:
-                    screen.blit(note_text.render(detail_info[0],fgcolor=cmap['notetext'],size=0.0185*H)[0],(10,10))
-                    screen.blit(note_text.render(detail_info[1].format(int(1/(time.time()-ct+1e-4))),fgcolor=cmap['notetext'],size=0.0185*H)[0],(10,10+0.0333*H))
-                    screen.blit(note_text.render(detail_info[2].format(n,this_frame['section']+1),fgcolor=cmap['notetext'],size=0.0185*H)[0],(10,10+0.0666*H))
-                    screen.blit(note_text.render(detail_info[3].format(stdin_text[this_frame['section']]),fgcolor=cmap['notetext'],size=0.0185*H)[0],(10,10+0.1*H))
-                # 仅显示帧率
-                else:
-                    screen.blit(note_text.render('%d'%(1//(time.time()-ct+1e-4)),fgcolor=cmap['notetext'],size=0.0278*H)[0],(10,10)) ##render rate +1e-4 to avoid float divmod()
-            else: # 如果正在暂停
+            # 如果正在暂停
+            if forward == 0:
                 screen.blit(note_text.render('Press space to continue.',fgcolor=cmap['notetext'],size=0.0278*H)[0],(0.410*W,0.926*H)) # pause
-            if resize_screen == 1: # 如果缩放到一半大小
+            # 显示详情模式
+            if show_detail_info == 1:
+                screen.blit(note_text.render(detail_info[0],fgcolor=cmap['notetext'],size=0.0185*H)[0],(10,10))
+                screen.blit(note_text.render(detail_info[2].format(n,this_frame['section']+1),fgcolor=cmap['notetext'],size=0.0185*H)[0],(10,10+0.0666*H))
+                screen.blit(note_text.render(detail_info[3].format(stdin_text[this_frame['section']]),fgcolor=cmap['notetext'],size=0.0185*H)[0],(10,10+0.1*H))
+                screen.blit(note_text.render(detail_info[4],fgcolor=cmap['notetext'],size=0.0185*H)[0],(10,10+0.1333*H))
+                screen.blit(note_text.render(detail_info[5].format(this_frame['BG1'],this_frame['BG2'],this_frame['BG3']),fgcolor=cmap['notetext'],size=0.0185*H)[0],(10,10+0.1666*H))
+                screen.blit(note_text.render(detail_info[6].format(this_frame['Am1'],this_frame['Am2'],this_frame['Am3']),fgcolor=cmap['notetext'],size=0.0185*H)[0],(10,10+0.2*H))
+                screen.blit(note_text.render(detail_info[7].format(this_frame['Bb'],this_frame['Bb_header'],this_frame['Bb_main']),fgcolor=cmap['notetext'],size=0.0185*H)[0],(10,10+0.2333*H))
+                screen.blit(note_text.render(detail_info[1].format(int(1/(time.time()-ct+1e-4))),fgcolor=cmap['notetext'],size=0.0185*H)[0],(10,10+0.0333*H))
+            # 仅显示帧率
+            else:
+                screen.blit(note_text.render('%d'%(1//(time.time()-ct+1e-4)),fgcolor=cmap['notetext'],size=0.0278*H)[0],(10,10)) ##render rate +1e-4 to avoid float divmod()
+            # 如果缩放到一半大小
+            if resize_screen == 1:
                 screen_resized.blit(pygame.transform.scale(screen,(W//2,H//2)),(0,0))
         else:
             pass # 节约算力
