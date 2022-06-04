@@ -6,11 +6,11 @@
 
 ## 程序下载
 
-### [免安装版 93.8MB](https://github.com/DanDDXuanX/TRPG-Replay-Generator/releases/download/v1.0.1/TRPG-Replay-Generator-v1.0.1-win64.7z)
+### [免安装版 95.3MB](https://github.com/DanDDXuanX/TRPG-Replay-Generator/releases/download/v1.0.2/TRPG-Replay-Generator-v1.0.2-win64.7z)
 - 免安装版是二进制可执行文件（.exe），仅适用于windows 64位系统。<p>
 - **解压即可使用**，无需另外安装python环境及其依赖项目。<p>
 
-### [源代码 25.1MB](https://github.com/DanDDXuanX/TRPG-Replay-Generator/releases/download/v1.0.1/TRPG-Replay-Generator-v1.0.1-SourceCode.7z)
+### [源代码 25.2MB](https://github.com/DanDDXuanX/TRPG-Replay-Generator/releases/download/v1.0.2/TRPG-Replay-Generator-v1.0.2-SourceCode.7z)
 - 源代码是程序的源文件（.py），适用于 windows，linux和 macOS系统。<p>
 - **必须安装**[**环境要求**](./README.md#环境要求：)中指定的项目后才能运行。<p>
 
@@ -70,7 +70,7 @@ python ./replay_generator.py -l ./toy/LogFile.rgl -d ./toy/MediaObject.txt -t ./
 ```
 4. 进入程序后，按空格键（SPACE）开始播放；播放的过程中，按A键或左方向键跳转到前一小节，D键或右方向键跳转到后一小节，按空格暂停播放，按F5键或I键展示详细信息，按F11键或P键将画面缩放至50%，按ESC键终止播放并退出。
 
-# 参考文档（文档版本 alpha 1.11.8）
+# 参考文档（文档版本 version 1.0.2）
 
 ## 输入文件格式
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-edtion = 'alpha 1.11.8'
+edtion = 'version 1.0.2'
 
 import tkinter as tk
 from tkinter import ttk
