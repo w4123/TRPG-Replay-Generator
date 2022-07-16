@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-edtion = 'version 1.0.2'
+edtion = 'version 1.0.3'
 
 # 外部参数输入
 
@@ -35,13 +35,13 @@ crf = args.Quality # 导出视频的质量值
 
 try:
     for path in [stdin_log,media_obj]:
-        if path == None:
+        if path is None:
             print(path)
             raise OSError("[31m[ArgumentError]:[0m Missing principal input argument!")
         if os.path.isfile(path) == False:
             raise OSError("[31m[ArgumentError]:[0m Cannot find file "+path)
 
-    if output_path == None:
+    if output_path is None:
         pass 
     elif os.path.isdir(output_path) == False:
         try:
@@ -126,8 +126,13 @@ class StrokeText(Text):
 
 # 对话框、气泡、文本框
 class Bubble:
-    def __init__(self,filepath,Main_Text=Text(),Header_Text=None,pos=(0,0),mt_pos=(0,0),ht_pos=(0,0),align='left',line_distance=1.5,label_color='Lavender'):
-        self.media = pygame.image.load(filepath)
+    def __init__(self,filepath=None,Main_Text=Text(),Header_Text=None,pos=(0,0),mt_pos=(0,0),ht_pos=(0,0),align='left',line_distance=1.5,label_color='Lavender'):
+        if filepath is None: # 支持气泡图缺省
+            # 媒体设为空图
+            self.media = pygame.Surface(screen_size,pygame.SRCALPHA)
+            self.media.fill((0,0,0,0))
+        else:
+            self.media = pygame.image.load(filepath)
         self.pos = pos
         self.MainText = Main_Text
         self.mt_pos = mt_pos
@@ -170,7 +175,7 @@ class Bubble:
 class Background:
     def __init__(self,filepath,pos = (0,0),label_color='Lavender'):
         if filepath in cmap.keys(): #添加了，对纯色定义的背景的支持
-            self.media = pygame.surface.Surface(screen_size)
+            self.media = pygame.Surface(screen_size)
             self.media.fill(cmap[filepath])
         else:
             self.media = pygame.image.load(filepath)
@@ -380,7 +385,7 @@ class BuiltInAnimation(Animation):
                     if dice_check != -1:
                         check_surf = BIA_text.render('/%d'%dice_check)
                         cx,cy = check_surf.get_size()
-                        canvas.blit(check_surf,(int(0.7292*screensize[0]),y_anchor+i*y_unit+(y_unit-ny)//2)) # 0.7292*screensize[0] = 1400
+                        canvas.blit(check_surf,(int(0.7292*screensize[0]),y_anchor+i*y_unit+(y_unit-cy)//2)) # 0.7292*screensize[0] = 1400
                 self.media = np.array([canvas])
                 self.pos = (0,0)
                 self.tick = 1
@@ -525,7 +530,6 @@ def render(this_frame):
             continue
         elif this_frame[layer] not in media_list:
             raise RuntimeError('[31m[RenderError]:[0m Undefined media object : "'+this_frame[layer]+'".')
-            continue
         elif layer[0:2] == 'BG':
             try:
                 exec('{0}.display(surface=screen,alpha={1},adjust={2})'.format(this_frame[layer],this_frame[layer+'_a'],'\"'+this_frame[layer+'_p']+'\"'))
@@ -611,10 +615,10 @@ for key,values in bulitin_media.iteritems():
 print('[export Video]: Start mixing audio tracks')
 
 tracks = ['SE','Voice','BGM']
-main_Track = pydub.AudioSegment.silent(duration=int(break_point.values.max()/frame_rate*1000),frame_rate=16000) # 主轨道
+main_Track = pydub.AudioSegment.silent(duration=int(break_point.values.max()/frame_rate*1000),frame_rate=48000) # 主轨道
 
 for tr in tracks:
-    this_Track = pydub.AudioSegment.silent(duration=int(break_point.values.max()/frame_rate*1000),frame_rate=16000)
+    this_Track = pydub.AudioSegment.silent(duration=int(break_point.values.max()/frame_rate*1000),frame_rate=48000)
     if tr == 'BGM':
         BGM_clips = parse_timeline('BGM')
         for i,item in enumerate(BGM_clips):
@@ -630,7 +634,7 @@ for tr in tracks:
                 end = break_point.values.max()
             #print(begin,end)
             this_Track = this_Track.overlay(pydub.AudioSegment.silent(duration=int((end-begin)/frame_rate*1000),
-                                                              frame_rate=16000).overlay(eval(voice+'.media')
+                                                              frame_rate=48000).overlay(eval(voice+'.media')
                                                                                         ,loop=True),
                                     position = int(begin/frame_rate*1000))
     else:
@@ -641,8 +645,9 @@ for tr in tracks:
                 voice = 'temp_AU'
             this_Track = this_Track.overlay(eval(voice+'.media'),position = int(begin/frame_rate*1000))
     main_Track = main_Track.overlay(this_Track) #合成到主音轨
+    print('[export Video]: Track {0} finished.'.format(tr))
 
-main_Track.export(output_path+'/'+stdin_name+'.mp3',format='mp3',codec='mp3')
+main_Track.export(output_path+'/'+stdin_name+'.mp3',format='mp3',codec='mp3',bitrate='256k')
 
 print('[export Video]: Audio mixing done!')
 

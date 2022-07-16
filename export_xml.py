@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-edtion = 'version 1.0.2'
+edtion = 'version 1.0.3'
 
 # 外部参数输入
 
@@ -32,12 +32,12 @@ zorder = args.Zorder.split(',') #渲染图层顺序
 
 try:
     for path in [stdin_log,media_obj]:
-        if path == None:
+        if path is None:
             raise OSError("[31m[ArgumentError]:[0m Missing principal input argument!")
         if os.path.isfile(path) == False:
             raise OSError("[31m[ArgumentError]:[0m Cannot find file "+path)
 
-    if output_path == None:
+    if output_path is None:
         pass 
     elif os.path.isdir(output_path) == False:
         try:
@@ -121,17 +121,23 @@ class StrokeText(Text):
 
     # 对话框、气泡、文本框
 class Bubble:
-    def __init__(self,filepath,Main_Text=Text(),Header_Text=None,pos=(0,0),mt_pos=(0,0),ht_pos=(0,0),align='left',line_distance=1.5,label_color='Lavender'):
+    def __init__(self,filepath=None,Main_Text=Text(),Header_Text=None,pos=(0,0),mt_pos=(0,0),ht_pos=(0,0),align='left',line_distance=1.5,label_color='Lavender'):
         global file_index
-        self.path = reformat_path(filepath)
+        # 支持气泡图缺省
+        if filepath is None:
+            self.path = None
+            self.size = screen_size
+            self.filename = None
+        else:
+            self.path = reformat_path(filepath)
+            self.size = Image.open(filepath).size
+            self.filename = self.path.split('/')[-1]
         self.MainText = Main_Text
         self.mt_pos = mt_pos
         self.Header = Header_Text
         self.ht_pos = ht_pos
         self.pos = pos
         self.line_distance = line_distance
-        self.size = Image.open(filepath).size
-        self.filename = self.path.split('/')[-1]
         self.fileindex = 'BBfile_' + '%d'% file_index
         self.PRpos = PR_center_arg(np.array(self.size),np.array(self.pos))
         self.align = align
@@ -160,7 +166,7 @@ class Bubble:
             else: # alpha 1.7.0 兼容居中
                 word_w = p3 - p1
                 canvas.paste(mt_text.crop((p1,p2,p3,p4)),
-                             (x + p1 + (self.MainText.size*self.MainText.line_limit - word_w)//2,
+                             (x + (self.MainText.size*self.MainText.line_limit - word_w)//2,
                               int(y+i*self.MainText.size*self.line_distance+p2)
                              )
                             )
@@ -169,39 +175,42 @@ class Bubble:
         # 生成序列
         width,height = self.size
         pr_horiz,pr_vert = self.PRpos
-        clip_bubble = clip_tplt.format(**{'clipid':'BB_clip_%d'%clip_index,
-                              'clipname':self.filename,
-                              'timebase':'%d'%frame_rate,
-                              'ntsc':Is_NTSC,
-                              'start':'%d'%begin,
-                              'end':'%d'%end,
-                              'in':'%d'%90000,
-                              'out':'%d'%(90000+end-begin),
-                              'fileid':self.fileindex,
-                              'filename':self.filename,
-                              'filepath':self.path,
-                              'filewidth':'%d'%width,
-                              'fileheight':'%d'%height,
-                              'horiz':'%.5f'%pr_horiz,
-                              'vert':'%.5f'%pr_vert,
-                              'colorlabel':self.label_color})
+        if self.path is None:
+            clip_bubble = None
+            print('Render empty Bubble!')
+        else:
+            clip_bubble = clip_tplt.format(**{'clipid':'BB_clip_%d'%clip_index,
+                                              'clipname':self.filename,
+                                              'timebase':'%d'%frame_rate,
+                                              'ntsc':Is_NTSC,
+                                              'start':'%d'%begin,
+                                              'end':'%d'%end,
+                                              'in':'%d'%90000,
+                                              'out':'%d'%(90000+end-begin),
+                                              'fileid':self.fileindex,
+                                              'filename':self.filename,
+                                              'filepath':self.path,
+                                              'filewidth':'%d'%width,
+                                              'fileheight':'%d'%height,
+                                              'horiz':'%.5f'%pr_horiz,
+                                              'vert':'%.5f'%pr_vert,
+                                              'colorlabel':self.label_color})
         clip_text = clip_tplt.format(**{'clipid':'TX_clip_%d'%clip_index,
-                              'clipname':'auto_TX_%d.png'%outtext_index,
-                              'timebase':'%d'%frame_rate,
-                              'ntsc':Is_NTSC,
-                              'start':'%d'%begin,
-                              'end':'%d'%end,
-                              'in':'%d'%90000,
-                              'out':'%d'%(90000+end-begin),
-                              'fileid':'auto_TX_%d'%outtext_index,
-                              'filename':'auto_TX_%d.png'%outtext_index,
-                              'filepath':reformat_path(ofile),
-                              'filewidth':'%d'%width,
-                              'fileheight':'%d'%height,
-                              'horiz':'%.5f'%pr_horiz,
-                              'vert':'%.5f'%pr_vert,
-                              'colorlabel':self.MainText.label_color})
-
+                                        'clipname':'auto_TX_%d.png'%outtext_index,
+                                        'timebase':'%d'%frame_rate,
+                                        'ntsc':Is_NTSC,
+                                        'start':'%d'%begin,
+                                        'end':'%d'%end,
+                                        'in':'%d'%90000,
+                                        'out':'%d'%(90000+end-begin),
+                                        'fileid':'auto_TX_%d'%outtext_index,
+                                        'filename':'auto_TX_%d.png'%outtext_index,
+                                        'filepath':reformat_path(ofile),
+                                        'filewidth':'%d'%width,
+                                        'fileheight':'%d'%height,
+                                        'horiz':'%.5f'%pr_horiz,
+                                        'vert':'%.5f'%pr_vert,
+                                        'colorlabel':self.MainText.label_color})
         outtext_index = outtext_index + 1
         clip_index = clip_index+1
         return (clip_bubble,clip_text)
@@ -440,10 +449,10 @@ class BuiltInAnimation(Animation):
                             p1,p2,p3,p4 = test_canvas.getbbox()
                         except TypeError:
                             p1,p2,p3,p4 = (0,0,1,int(0.0521*screensize[0])) # nx=1 ny =fontsize
-                        cx = p3 - p1
+                        #cx = p3 - p1
                         cy = p4 - p2
                         check_surf = test_canvas.crop((p1,p2,p3,p4))
-                        canvas.paste(check_surf,(int(0.7292*screensize[0]),y_anchor+i*y_unit+(y_unit-ny)//2)) # 0.7292*screensize[0] = 1400
+                        canvas.paste(check_surf,(int(0.7292*screensize[0]),y_anchor+i*y_unit+(y_unit-cy)//2)) # 0.7292*screensize[0] = 1400
                 self.size = screen_size
                 self.pos = (0,0)
             elif layer==1: #无法显示动态，留空白
@@ -613,8 +622,8 @@ def parse_timeline_bubble(layer):
                 end = key #否则把当前key作为一个clip的断点
                 clips.append((item,main_text,header_text,begin,end)) #并记录下这个断点
             item = values[layer] #无论如何，重设item和begin
-            main_text = values[layer + '_main']
-            header_text = values[layer + '_header']
+            # main_text = values[layer + '_main'] # v 1.10.15 这两行似乎没啥用？
+            # header_text = values[layer + '_header'] # 因为下面又赋值了一遍
             begin = key
         else: #如果不满足断点要求，那么就什么都不做
             pass
@@ -715,7 +724,10 @@ def main():
             for item in track_items:
                 bubble_this,text_this = eval('{0}.display(begin ={1},end={2},text="{3}",header="{4}")'
                                              .format(item[0],item[3],item[4],item[1],item[2]))
-                bubble_clip_list.append(bubble_this)
+                if bubble_this is not None:
+                    # 气泡的返回值可能为空！
+                    bubble_clip_list.append(bubble_this)
+                # 文本始终会有一个返回值
                 text_clip_list.append(text_this)
             video_tracks.append(track_tplt.format(**{'targeted':'False','clips':'\n'.join(bubble_clip_list)}))
             video_tracks.append(track_tplt.format(**{'targeted':'True','clips':'\n'.join(text_clip_list)}))

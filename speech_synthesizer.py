@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-edtion = 'version 1.0.2'
+edtion = 'version 1.0.3'
 
 # 绝对的全局变量
 # 在开源发布的版本中，隐去了各个key
@@ -34,12 +34,12 @@ media_obj = args.MediaObjDefine #媒体对象定义文件的路径
 
 try:
     for path in [stdin_log,char_tab,media_obj]:
-        if path == None:
+        if path is None:
             raise OSError("[31m[ArgumentError]:[0m Missing principal input argument!")
         if os.path.isfile(path) == False:
             raise OSError("[31m[ArgumentError]:[0m Cannot find file "+path)
 
-    if output_path == None:
+    if output_path is None:
         raise OSError("[31m[ArgumentError]:[0m No output path is specified!")
     elif os.path.isdir(output_path) == False:
         try:
@@ -137,12 +137,15 @@ class Azure_TTS_engine:
     voice_list = voice_lib[voice_lib['service'] == 'Azure'].index
     # SSML模板
     SSML_tplt = open('./xml_templates/tplt_ssml.xml','r').read()
+    # 输出文件格式配置
+    output_format = {'mp3':23,# SpeechSynthesisOutputFormat.Audio48Khz192KBitRateMonoMp3
+                     'wav':21}# SpeechSynthesisOutputFormat.Riff48Khz16BitMonoPcm
     def __init__(self,name='unnamed',voice = 'zh-CN-XiaomoNeural:general:1:Default',speech_rate=0,pitch_rate=0,aformat='wav'):
         if 'azure.cognitiveservices.speech' not in sys.modules:
             global speechsdk
             import azure.cognitiveservices.speech as speechsdk
         self.ID = name
-        self.aformat = aformat
+        self.aformat = Azure_TTS_engine.output_format[aformat]
         # 500 - 2; -500 - 0.5
         self.speech_rate = str(speech_rate//5)+'%'
         # 500 - 12st; -500 - -12st
@@ -169,6 +172,7 @@ class Azure_TTS_engine:
     def start(self,text,ofile):
         # 准备配置
         speech_config = speechsdk.SpeechConfig(subscription=Azure_TTS_engine.AZUKEY, region=Azure_TTS_engine.service_region)
+        speech_config.set_speech_synthesis_output_format(speechsdk.SpeechSynthesisOutputFormat(self.aformat))
         audio_config = speechsdk.audio.AudioOutputConfig(filename=ofile)
         synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
         # 开始合成
@@ -187,7 +191,6 @@ class Azure_TTS_engine:
                     print("[33m[AzureError]:[0m {}".format(cancellation_details.error_details))
             # os.remove(ofile) # 算了算了 0kb 也留着吧
             raise Exception("[33m[AzureError]:[0m {}".format(cancellation_details.reason))
-
 
 # 正则表达式定义
 
@@ -450,7 +453,7 @@ def main():
     refresh = asterisk_line[(asterisk_line.category==3)|(asterisk_line.synth_status==True)].dropna().copy() #检定是否成功合成
 
     if len(refresh.index) == 0: #如果未合成任何语音
-        print('[33m[warning]:[0m','No vaild asterisk label synthesised, execution terminated!')
+        print('[33m[warning]:[0m','No valid asterisk label synthesised, execution terminated!')
         sys.exit(1) # alpha 1.11.7 未有合成也异常退出
 
     # 读取音频时长
