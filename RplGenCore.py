@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-edtion = 'version 1.0.2'
+edtion = 'version 1.0.3'
 
 import argparse
 import sys
@@ -76,12 +76,12 @@ if args.Modules == 'replay_generator':
 
     try:
         for path in [stdin_log,media_obj,char_tab]:
-            if path == None:
+            if path is None:
                 raise OSError("[31m[ArgumentError]:[0m Missing principal input argument!")
             if os.path.isfile(path) == False:
                 raise OSError("[31m[ArgumentError]:[0m Cannot find file "+path)
 
-        if output_path == None:
+        if output_path is None:
             if (synthfirst == True) | (exportXML == True) | (exportVideo == True):
                 raise OSError("[31m[ArgumentError]:[0m Some flags requires output path, but no output path is specified!")
         elif os.path.isdir(output_path) == False:
@@ -168,8 +168,13 @@ if args.Modules == 'replay_generator':
 
     # 对话框、气泡、文本框
     class Bubble:
-        def __init__(self,filepath,Main_Text=Text(),Header_Text=None,pos=(0,0),mt_pos=(0,0),ht_pos=(0,0),align='left',line_distance=1.5,label_color='Lavender'):
-            self.media = pygame.image.load(filepath)
+        def __init__(self,filepath=None,Main_Text=Text(),Header_Text=None,pos=(0,0),mt_pos=(0,0),ht_pos=(0,0),align='left',line_distance=1.5,label_color='Lavender'):
+            if filepath is None: # 支持气泡图缺省
+                # 媒体设为空图
+                self.media = pygame.Surface(screen_size,pygame.SRCALPHA)
+                self.media.fill((0,0,0,0))
+            else:
+                self.media = pygame.image.load(filepath)
             self.pos = pos
             self.MainText = Main_Text
             self.mt_pos = mt_pos
@@ -212,7 +217,7 @@ if args.Modules == 'replay_generator':
     class Background:
         def __init__(self,filepath,pos = (0,0),label_color='Lavender'):
             if filepath in cmap.keys(): #添加了，对纯色定义的背景的支持
-                self.media = pygame.surface.Surface(screen_size)
+                self.media = pygame.Surface(screen_size)
                 self.media.fill(cmap[filepath])
             else:
                 self.media = pygame.image.load(filepath)
@@ -422,7 +427,7 @@ if args.Modules == 'replay_generator':
                         if dice_check != -1:
                             check_surf = BIA_text.render('/%d'%dice_check)
                             cx,cy = check_surf.get_size()
-                            canvas.blit(check_surf,(int(0.7292*screensize[0]),y_anchor+i*y_unit+(y_unit-ny)//2)) # 0.7292*screensize[0] = 1400
+                            canvas.blit(check_surf,(int(0.7292*screensize[0]),y_anchor+i*y_unit+(y_unit-cy)//2)) # 0.7292*screensize[0] = 1400
                     self.media = np.array([canvas])
                     self.pos = (0,0)
                     self.tick = 1
@@ -878,6 +883,9 @@ if args.Modules == 'replay_generator':
                         # 检查气泡文本的可用性 alpha 1.8.4
                         if ('"' in name) | ('\\' in name) | ('"' in ts) | ('\\' in ts):
                             raise ParserError('[31m[ParserError]:[0m','Invalid symbol (double quote or backslash) appeared in speech text in dialogue line ' + str(i+1)+'.')
+                        if ('#' in ts)&(ts[0]!='^'):
+                            ts = '^' + ts
+                            print('[33m[warning]:[0m','Undeclared manual break dialogue line ' + str(i+1)+'.')
                         # 气泡的参数
                         if k == 0:
                             this_bb = charactor_table.loc[name+subtype]['Bubble']
@@ -962,7 +970,6 @@ if args.Modules == 'replay_generator':
                 except Exception as E:
                     print(E)
                     raise ParserError('[31m[ParserError]:[0m Parse exception occurred in dialogue line ' + str(i+1)+'.')
-                    continue
             # 背景设置行，格式： <background><black=30>:BG_obj
             elif '<background>' in text:
                 try:
@@ -1012,7 +1019,6 @@ if args.Modules == 'replay_generator':
                 except Exception as E:
                     print(E)
                     raise ParserError('[31m[ParserError]:[0m Parse exception occurred in background line ' + str(i+1)+'.')
-                    continue
             # 参数设置行，格式：<set:speech_speed>:220
             elif ('<set:' in text) & ('>:' in text):
                 try:
@@ -1051,11 +1057,9 @@ if args.Modules == 'replay_generator':
                             raise ParserError('[31m[ParserError]:[0m Unsupported formula "'+args+'" is specified in setting line ' + str(i+1)+'.')
                     else:
                         raise ParserError('[31m[ParserError]:[0m Unsupported setting "'+target+'" is specified in setting line ' + str(i+1)+'.')
-                        continue
                 except Exception as E:
                     print(E)
                     raise ParserError('[31m[ParserError]:[0m Parse exception occurred in setting line ' + str(i+1)+'.')
-                    continue
             # 预设动画，损失生命
             elif text[0:11]=='<hitpoint>:':
                 try:
@@ -1125,7 +1129,6 @@ if args.Modules == 'replay_generator':
                 except Exception as E:
                     print(E)
                     raise ParserError('[31m[ParserError]:[0m Parse exception occurred in hitpoint line ' + str(i+1)+'.')
-                    continue
             # 预设动画，骰子
             elif text[0:7]=='<dice>:':
                 try:
@@ -1189,7 +1192,6 @@ if args.Modules == 'replay_generator':
                 except Exception as E:
                     print(E)
                     raise ParserError('[31m[ParserError]:[0m Parse exception occurred in dice line ' + str(i+1)+'.')
-                    continue
             # 异常行，报出异常
             else:
                 raise ParserError('[31m[ParserError]:[0m Unrecognized line: '+ str(i+1)+'.')
@@ -1218,7 +1220,6 @@ if args.Modules == 'replay_generator':
                 continue
             elif this_frame[layer] not in media_list:
                 raise RuntimeError('[31m[RenderError]:[0m Undefined media object : "'+this_frame[layer]+'".')
-                continue
             elif layer[0:2] == 'BG':
                 try:
                     exec('{0}.display(surface=screen,alpha={1},adjust={2})'.format(this_frame[layer],this_frame[layer+'_a'],'\"'+this_frame[layer+'_p']+'\"'))
@@ -1587,12 +1588,12 @@ elif args.Modules == 'speech_synthesizer':
 
     try:
         for path in [stdin_log,char_tab,media_obj]:
-            if path == None:
+            if path is None:
                 raise OSError("[31m[ArgumentError]:[0m Missing principal input argument!")
             if os.path.isfile(path) == False:
                 raise OSError("[31m[ArgumentError]:[0m Cannot find file "+path)
 
-        if output_path == None:
+        if output_path is None:
             raise OSError("[31m[ArgumentError]:[0m No output path is specified!")
         elif os.path.isdir(output_path) == False:
             try:
@@ -1690,12 +1691,15 @@ elif args.Modules == 'speech_synthesizer':
         voice_list = voice_lib[voice_lib['service'] == 'Azure'].index
         # SSML模板
         SSML_tplt = open('./xml_templates/tplt_ssml.xml','r').read()
+        # 输出文件格式配置
+        output_format = {'mp3':23,# SpeechSynthesisOutputFormat.Audio48Khz192KBitRateMonoMp3
+                         'wav':21}# SpeechSynthesisOutputFormat.Riff48Khz16BitMonoPcm
         def __init__(self,name='unnamed',voice = 'zh-CN-XiaomoNeural:general:1:Default',speech_rate=0,pitch_rate=0,aformat='wav'):
             if 'azure.cognitiveservices.speech' not in sys.modules:
                 global speechsdk
                 import azure.cognitiveservices.speech as speechsdk
             self.ID = name
-            self.aformat = aformat
+            self.aformat = Azure_TTS_engine.output_format[aformat]
             # 500 - 2; -500 - 0.5
             self.speech_rate = str(speech_rate//5)+'%'
             # 500 - 12st; -500 - -12st
@@ -1722,6 +1726,7 @@ elif args.Modules == 'speech_synthesizer':
         def start(self,text,ofile):
             # 准备配置
             speech_config = speechsdk.SpeechConfig(subscription=Azure_TTS_engine.AZUKEY, region=Azure_TTS_engine.service_region)
+            speech_config.set_speech_synthesis_output_format(speechsdk.SpeechSynthesisOutputFormat(self.aformat))
             audio_config = speechsdk.audio.AudioOutputConfig(filename=ofile)
             synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
             # 开始合成
@@ -1740,7 +1745,6 @@ elif args.Modules == 'speech_synthesizer':
                         print("[33m[AzureError]:[0m {}".format(cancellation_details.error_details))
                 # os.remove(ofile) # 算了算了 0kb 也留着吧
                 raise Exception("[33m[AzureError]:[0m {}".format(cancellation_details.reason))
-
 
     # 正则表达式定义
 
@@ -2003,7 +2007,7 @@ elif args.Modules == 'speech_synthesizer':
         refresh = asterisk_line[(asterisk_line.category==3)|(asterisk_line.synth_status==True)].dropna().copy() #检定是否成功合成
 
         if len(refresh.index) == 0: #如果未合成任何语音
-            print('[33m[warning]:[0m','No vaild asterisk label synthesised, execution terminated!')
+            print('[33m[warning]:[0m','No valid asterisk label synthesised, execution terminated!')
             sys.exit(1) # alpha 1.11.7 未有合成也异常退出
 
         # 读取音频时长
@@ -2041,12 +2045,12 @@ elif args.Modules == 'export_xml':
 
     try:
         for path in [stdin_log,media_obj]:
-            if path == None:
+            if path is None:
                 raise OSError("[31m[ArgumentError]:[0m Missing principal input argument!")
             if os.path.isfile(path) == False:
                 raise OSError("[31m[ArgumentError]:[0m Cannot find file "+path)
 
-        if output_path == None:
+        if output_path is None:
             pass 
         elif os.path.isdir(output_path) == False:
             try:
@@ -2130,17 +2134,23 @@ elif args.Modules == 'export_xml':
 
         # 对话框、气泡、文本框
     class Bubble:
-        def __init__(self,filepath,Main_Text=Text(),Header_Text=None,pos=(0,0),mt_pos=(0,0),ht_pos=(0,0),align='left',line_distance=1.5,label_color='Lavender'):
+        def __init__(self,filepath=None,Main_Text=Text(),Header_Text=None,pos=(0,0),mt_pos=(0,0),ht_pos=(0,0),align='left',line_distance=1.5,label_color='Lavender'):
             global file_index
-            self.path = reformat_path(filepath)
+            # 支持气泡图缺省
+            if filepath is None:
+                self.path = None
+                self.size = screen_size
+                self.filename = None
+            else:
+                self.path = reformat_path(filepath)
+                self.size = Image.open(filepath).size
+                self.filename = self.path.split('/')[-1]
             self.MainText = Main_Text
             self.mt_pos = mt_pos
             self.Header = Header_Text
             self.ht_pos = ht_pos
             self.pos = pos
             self.line_distance = line_distance
-            self.size = Image.open(filepath).size
-            self.filename = self.path.split('/')[-1]
             self.fileindex = 'BBfile_' + '%d'% file_index
             self.PRpos = PR_center_arg(np.array(self.size),np.array(self.pos))
             self.align = align
@@ -2169,7 +2179,7 @@ elif args.Modules == 'export_xml':
                 else: # alpha 1.7.0 兼容居中
                     word_w = p3 - p1
                     canvas.paste(mt_text.crop((p1,p2,p3,p4)),
-                                 (x + p1 + (self.MainText.size*self.MainText.line_limit - word_w)//2,
+                                 (x + (self.MainText.size*self.MainText.line_limit - word_w)//2,
                                   int(y+i*self.MainText.size*self.line_distance+p2)
                                  )
                                 )
@@ -2178,39 +2188,42 @@ elif args.Modules == 'export_xml':
             # 生成序列
             width,height = self.size
             pr_horiz,pr_vert = self.PRpos
-            clip_bubble = clip_tplt.format(**{'clipid':'BB_clip_%d'%clip_index,
-                                  'clipname':self.filename,
-                                  'timebase':'%d'%frame_rate,
-                                  'ntsc':Is_NTSC,
-                                  'start':'%d'%begin,
-                                  'end':'%d'%end,
-                                  'in':'%d'%90000,
-                                  'out':'%d'%(90000+end-begin),
-                                  'fileid':self.fileindex,
-                                  'filename':self.filename,
-                                  'filepath':self.path,
-                                  'filewidth':'%d'%width,
-                                  'fileheight':'%d'%height,
-                                  'horiz':'%.5f'%pr_horiz,
-                                  'vert':'%.5f'%pr_vert,
-                                  'colorlabel':self.label_color})
+            if self.path is None:
+                clip_bubble = None
+                print('Render empty Bubble!')
+            else:
+                clip_bubble = clip_tplt.format(**{'clipid':'BB_clip_%d'%clip_index,
+                                                  'clipname':self.filename,
+                                                  'timebase':'%d'%frame_rate,
+                                                  'ntsc':Is_NTSC,
+                                                  'start':'%d'%begin,
+                                                  'end':'%d'%end,
+                                                  'in':'%d'%90000,
+                                                  'out':'%d'%(90000+end-begin),
+                                                  'fileid':self.fileindex,
+                                                  'filename':self.filename,
+                                                  'filepath':self.path,
+                                                  'filewidth':'%d'%width,
+                                                  'fileheight':'%d'%height,
+                                                  'horiz':'%.5f'%pr_horiz,
+                                                  'vert':'%.5f'%pr_vert,
+                                                  'colorlabel':self.label_color})
             clip_text = clip_tplt.format(**{'clipid':'TX_clip_%d'%clip_index,
-                                  'clipname':'auto_TX_%d.png'%outtext_index,
-                                  'timebase':'%d'%frame_rate,
-                                  'ntsc':Is_NTSC,
-                                  'start':'%d'%begin,
-                                  'end':'%d'%end,
-                                  'in':'%d'%90000,
-                                  'out':'%d'%(90000+end-begin),
-                                  'fileid':'auto_TX_%d'%outtext_index,
-                                  'filename':'auto_TX_%d.png'%outtext_index,
-                                  'filepath':reformat_path(ofile),
-                                  'filewidth':'%d'%width,
-                                  'fileheight':'%d'%height,
-                                  'horiz':'%.5f'%pr_horiz,
-                                  'vert':'%.5f'%pr_vert,
-                                  'colorlabel':self.MainText.label_color})
-
+                                            'clipname':'auto_TX_%d.png'%outtext_index,
+                                            'timebase':'%d'%frame_rate,
+                                            'ntsc':Is_NTSC,
+                                            'start':'%d'%begin,
+                                            'end':'%d'%end,
+                                            'in':'%d'%90000,
+                                            'out':'%d'%(90000+end-begin),
+                                            'fileid':'auto_TX_%d'%outtext_index,
+                                            'filename':'auto_TX_%d.png'%outtext_index,
+                                            'filepath':reformat_path(ofile),
+                                            'filewidth':'%d'%width,
+                                            'fileheight':'%d'%height,
+                                            'horiz':'%.5f'%pr_horiz,
+                                            'vert':'%.5f'%pr_vert,
+                                            'colorlabel':self.MainText.label_color})
             outtext_index = outtext_index + 1
             clip_index = clip_index+1
             return (clip_bubble,clip_text)
@@ -2449,10 +2462,10 @@ elif args.Modules == 'export_xml':
                                 p1,p2,p3,p4 = test_canvas.getbbox()
                             except TypeError:
                                 p1,p2,p3,p4 = (0,0,1,int(0.0521*screensize[0])) # nx=1 ny =fontsize
-                            cx = p3 - p1
+                            #cx = p3 - p1
                             cy = p4 - p2
                             check_surf = test_canvas.crop((p1,p2,p3,p4))
-                            canvas.paste(check_surf,(int(0.7292*screensize[0]),y_anchor+i*y_unit+(y_unit-ny)//2)) # 0.7292*screensize[0] = 1400
+                            canvas.paste(check_surf,(int(0.7292*screensize[0]),y_anchor+i*y_unit+(y_unit-cy)//2)) # 0.7292*screensize[0] = 1400
                     self.size = screen_size
                     self.pos = (0,0)
                 elif layer==1: #无法显示动态，留空白
@@ -2622,8 +2635,8 @@ elif args.Modules == 'export_xml':
                     end = key #否则把当前key作为一个clip的断点
                     clips.append((item,main_text,header_text,begin,end)) #并记录下这个断点
                 item = values[layer] #无论如何，重设item和begin
-                main_text = values[layer + '_main']
-                header_text = values[layer + '_header']
+                # main_text = values[layer + '_main'] # v 1.10.15 这两行似乎没啥用？
+                # header_text = values[layer + '_header'] # 因为下面又赋值了一遍
                 begin = key
             else: #如果不满足断点要求，那么就什么都不做
                 pass
@@ -2724,7 +2737,10 @@ elif args.Modules == 'export_xml':
                 for item in track_items:
                     bubble_this,text_this = eval('{0}.display(begin ={1},end={2},text="{3}",header="{4}")'
                                                  .format(item[0],item[3],item[4],item[1],item[2]))
-                    bubble_clip_list.append(bubble_this)
+                    if bubble_this is not None:
+                        # 气泡的返回值可能为空！
+                        bubble_clip_list.append(bubble_this)
+                    # 文本始终会有一个返回值
                     text_clip_list.append(text_this)
                 video_tracks.append(track_tplt.format(**{'targeted':'False','clips':'\n'.join(bubble_clip_list)}))
                 video_tracks.append(track_tplt.format(**{'targeted':'True','clips':'\n'.join(text_clip_list)}))
@@ -2778,13 +2794,13 @@ elif args.Modules == 'export_video':
 
     try:
         for path in [stdin_log,media_obj]:
-            if path == None:
+            if path is None:
                 print(path)
                 raise OSError("[31m[ArgumentError]:[0m Missing principal input argument!")
             if os.path.isfile(path) == False:
                 raise OSError("[31m[ArgumentError]:[0m Cannot find file "+path)
 
-        if output_path == None:
+        if output_path is None:
             pass 
         elif os.path.isdir(output_path) == False:
             try:
@@ -2869,8 +2885,13 @@ elif args.Modules == 'export_video':
 
     # 对话框、气泡、文本框
     class Bubble:
-        def __init__(self,filepath,Main_Text=Text(),Header_Text=None,pos=(0,0),mt_pos=(0,0),ht_pos=(0,0),align='left',line_distance=1.5,label_color='Lavender'):
-            self.media = pygame.image.load(filepath)
+        def __init__(self,filepath=None,Main_Text=Text(),Header_Text=None,pos=(0,0),mt_pos=(0,0),ht_pos=(0,0),align='left',line_distance=1.5,label_color='Lavender'):
+            if filepath is None: # 支持气泡图缺省
+                # 媒体设为空图
+                self.media = pygame.Surface(screen_size,pygame.SRCALPHA)
+                self.media.fill((0,0,0,0))
+            else:
+                self.media = pygame.image.load(filepath)
             self.pos = pos
             self.MainText = Main_Text
             self.mt_pos = mt_pos
@@ -2913,7 +2934,7 @@ elif args.Modules == 'export_video':
     class Background:
         def __init__(self,filepath,pos = (0,0),label_color='Lavender'):
             if filepath in cmap.keys(): #添加了，对纯色定义的背景的支持
-                self.media = pygame.surface.Surface(screen_size)
+                self.media = pygame.Surface(screen_size)
                 self.media.fill(cmap[filepath])
             else:
                 self.media = pygame.image.load(filepath)
@@ -3123,7 +3144,7 @@ elif args.Modules == 'export_video':
                         if dice_check != -1:
                             check_surf = BIA_text.render('/%d'%dice_check)
                             cx,cy = check_surf.get_size()
-                            canvas.blit(check_surf,(int(0.7292*screensize[0]),y_anchor+i*y_unit+(y_unit-ny)//2)) # 0.7292*screensize[0] = 1400
+                            canvas.blit(check_surf,(int(0.7292*screensize[0]),y_anchor+i*y_unit+(y_unit-cy)//2)) # 0.7292*screensize[0] = 1400
                     self.media = np.array([canvas])
                     self.pos = (0,0)
                     self.tick = 1
@@ -3268,7 +3289,6 @@ elif args.Modules == 'export_video':
                 continue
             elif this_frame[layer] not in media_list:
                 raise RuntimeError('[31m[RenderError]:[0m Undefined media object : "'+this_frame[layer]+'".')
-                continue
             elif layer[0:2] == 'BG':
                 try:
                     exec('{0}.display(surface=screen,alpha={1},adjust={2})'.format(this_frame[layer],this_frame[layer+'_a'],'\"'+this_frame[layer+'_p']+'\"'))
@@ -3354,10 +3374,10 @@ elif args.Modules == 'export_video':
     print('[export Video]: Start mixing audio tracks')
 
     tracks = ['SE','Voice','BGM']
-    main_Track = pydub.AudioSegment.silent(duration=int(break_point.values.max()/frame_rate*1000),frame_rate=16000) # 主轨道
+    main_Track = pydub.AudioSegment.silent(duration=int(break_point.values.max()/frame_rate*1000),frame_rate=48000) # 主轨道
 
     for tr in tracks:
-        this_Track = pydub.AudioSegment.silent(duration=int(break_point.values.max()/frame_rate*1000),frame_rate=16000)
+        this_Track = pydub.AudioSegment.silent(duration=int(break_point.values.max()/frame_rate*1000),frame_rate=48000)
         if tr == 'BGM':
             BGM_clips = parse_timeline('BGM')
             for i,item in enumerate(BGM_clips):
@@ -3373,7 +3393,7 @@ elif args.Modules == 'export_video':
                     end = break_point.values.max()
                 #print(begin,end)
                 this_Track = this_Track.overlay(pydub.AudioSegment.silent(duration=int((end-begin)/frame_rate*1000),
-                                                                  frame_rate=16000).overlay(eval(voice+'.media')
+                                                                  frame_rate=48000).overlay(eval(voice+'.media')
                                                                                             ,loop=True),
                                         position = int(begin/frame_rate*1000))
         else:
@@ -3384,8 +3404,9 @@ elif args.Modules == 'export_video':
                     voice = 'temp_AU'
                 this_Track = this_Track.overlay(eval(voice+'.media'),position = int(begin/frame_rate*1000))
         main_Track = main_Track.overlay(this_Track) #合成到主音轨
+        print('[export Video]: Track {0} finished.'.format(tr))
 
-    main_Track.export(output_path+'/'+stdin_name+'.mp3',format='mp3',codec='mp3')
+    main_Track.export(output_path+'/'+stdin_name+'.mp3',format='mp3',codec='mp3',bitrate='256k')
 
     print('[export Video]: Audio mixing done!')
 
